@@ -27,7 +27,7 @@ export type Companion = {
   updatedAt?: string
 }
 
-export type OrderStatus = 'unpaid' | 'pending' | 'assigned' | 'in_progress' | 'completion_pending' | 'completed' | 'cancelled'
+export type OrderStatus = 'unpaid' | 'payment_review' | 'pending' | 'assigned' | 'in_progress' | 'completion_pending' | 'completed' | 'cancelled'
 export type AssignmentSource = 'customer' | 'fighter' | 'admin' | ''
 
 export type Order = {
@@ -37,6 +37,7 @@ export type Order = {
   companionName: string
   serviceTypeId: string
   serviceName: string
+  sourcePostId?: string
   spec: string
   unitCount: number
   price: number
@@ -57,6 +58,8 @@ export type Order = {
   paid: boolean
   paidAt: string
   paymentMethod: string
+  paymentNote: string
+  paymentSubmittedAt: string
   customerPhone: string
   completionNote: string
   completionProof: string[]
@@ -231,6 +234,20 @@ export type Analytics = {
 export type Setting = { key: string; value: string }
 export type TrialQuota = { used: number; remaining: number; limit: number }
 
+export type PaymentQrChannel = 'wechat' | 'alipay'
+export type PaymentQrOption = {
+  channel: PaymentQrChannel
+  label: string
+  qrUrl: string
+}
+export type PaymentConfig = {
+  enabled: boolean
+  qrUrl: string
+  qrCodes: PaymentQrOption[]
+  title: string
+  instructions: string
+}
+
 
 // ===== 24h 智能客服（AI Customer Service）=====
 export type AiConversation = {
@@ -279,4 +296,110 @@ export type AiSettings = {
   persona: string
   quickQuestions: string[]
   testMessage: string
+}
+
+
+// ===== ?????Community?=====
+export type CommunityPostStatus = 'draft' | 'pending' | 'published' | 'rejected' | 'hidden'
+export type CommunityChannel = 'recommend' | 'follow' | 'knowledge' | 'latest' | 'profile'
+
+export type CommunityProfile = {
+  customerId: string
+  nickname: string
+  avatarUrl: string
+  bio: string
+  level: number
+  contributionScore: number
+  postCount: number
+  followerCount: number
+  followingCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type CommunityPost = {
+  id: string
+  authorId: string
+  authorName: string
+  authorAvatar: string
+  authorLevel: number
+  title: string
+  content: string
+  topic: string
+  status: CommunityPostStatus
+  featured: boolean
+  pinned: boolean
+  knowledge: boolean
+  serviceId: string
+  serviceName: string
+  images: string[]
+  tags: string[]
+  likeCount: number
+  favoriteCount: number
+  commentCount: number
+  viewCount: number
+  orderCount: number
+  evidenceCount: number
+  liked: boolean
+  favorited: boolean
+  followingAuthor: boolean
+  createdAt: string
+  updatedAt: string
+  publishedAt: string
+}
+
+export type CommunityComment = {
+  id: string
+  postId: string
+  authorId: string
+  authorName: string
+  authorAvatar: string
+  parentId: string
+  content: string
+  status: 'published' | 'hidden'
+  likeCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type CommunityNotification = {
+  id: string
+  userId: string
+  actorId: string
+  actorName: string
+  actorAvatar: string
+  type: 'like' | 'favorite' | 'comment' | 'follow' | 'order' | 'moderation' | 'system'
+  postId: string
+  content: string
+  isRead: boolean
+  createdAt: string
+}
+
+export type CommunityEvidence = {
+  orderId: string
+  orderNo: string
+  companionName: string
+  serviceName: string
+  unitCount: number
+  amount: number
+  completedAt: string
+  status: 'completed'
+}
+
+export type CommunityFeed = {
+  posts: CommunityPost[]
+  total: number
+  page: number
+  pageSize: number
+  topics: { topic: string; count: number }[]
+  stats: { posts: number; comments: number; completedOrders: number; contributors: number }
+}
+
+export type CommunityProfileView = {
+  profile: CommunityProfile
+  posts: CommunityPost[]
+  total: number
+  page: number
+  pageSize: number
+  isFollowing: boolean
 }

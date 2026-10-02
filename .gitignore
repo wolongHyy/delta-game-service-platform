@@ -6,6 +6,8 @@ node/
 
 # 数据库（可用 seed 脚本重建；需要备份时直接复制 app/db/custom.db）
 app/db/
+app/uploads/
+uploads/
 
 # 生成的 GLM 识图 MCP 服务器（位于项目 outputs/ 下，可随时重新构建）
 outputs/
@@ -38,3 +40,6 @@ miniprogram/pages/project.private.config.json
 需求文档与设计方案.md
 app/scripts/seed.cjs
 app/src/lib/ai/knowledge-seed.json
+# Codex 临时脚本与验收草稿（不属于产品源码）
+.codex-*
+app/.codex-*

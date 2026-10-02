@@ -11,7 +11,16 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const keys = ['shopName', 'customerServiceWechat', 'notice']
+    const keys = [
+      'shopName',
+      'customerServiceWechat',
+      'notice',
+      'paymentQrUrl',
+      'paymentQrWechatUrl',
+      'paymentQrAlipayUrl',
+      'paymentQrTitle',
+      'paymentInstructions',
+    ]
     for (const k of keys) {
       if (body[k] !== undefined) setSetting(k, String(body[k]))
     }

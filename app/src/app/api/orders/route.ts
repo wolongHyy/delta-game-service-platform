@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       customerPhone: customer.phone || '',
       fighterId: body.fighterId || '',
       isTrial: body.isTrial === true,
+      sourcePostId: String(body.sourcePostId || ''),
       idempotencyKey: String(body.idempotencyKey || ''),
     })
     return NextResponse.json(order, { status: 201 })

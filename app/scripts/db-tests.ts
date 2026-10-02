@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict'
+import assert from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -26,6 +26,8 @@ const {
   listCompanions,
   listOrders,
   payOrder,
+  rejectPaymentProof,
+  submitPaymentProof,
   issueSliderChallenge,
   verifySliderChallenge,
   issueClaimToken,
@@ -35,6 +37,20 @@ const {
   updateCompanion,
   fighterStartOrder,
   confirmOrderCompletion,
+  createCommunityComment,
+  createCommunityPost,
+  getCommunityPost,
+  getOrCreateCommunityProfile,
+  listCommunityComments,
+  listCommunityEvidence,
+  listCommunityNotifications,
+  listCommunityPosts,
+  listFollowers,
+  markCommunityNotificationRead,
+  reviewCommunityPost,
+  toggleCommunityFavorite,
+  toggleCommunityLike,
+  toggleFollow,
 } = await import('../src/lib/db.ts')
 
 async function createFighter(username: string, tier = ''): Promise<string> {
@@ -57,7 +73,7 @@ async function createFighter(username: string, tier = ''): Promise<string> {
 function paidOrder(companionId: string, customerId = 'test-customer', extra: Record<string, unknown> = {}) {
   const order = createOrder({ companionId, unitCount: 1, customerId, ...(extra as any) })
   assert.equal(order.status, 'unpaid')
-  const paid = payOrder(order.id, { type: 'customer', id: customerId }, 'online_mock')
+  const paid = payOrder(order.id, { type: 'admin' }, 'offline')
   assert.equal(paid?.paid, true)
   return paid as NonNullable<typeof paid>
 }
@@ -155,7 +171,7 @@ describe('order database guards', () => {
     assert.equal(order.paid, false)
     assert.ok(!listOpenOrders().some((item) => item.id === order.id))
 
-    const paid = payOrder(order.id, { type: 'customer', id: 'pay-flow-customer' }, 'online_mock')
+    const paid = payOrder(order.id, { type: 'admin' }, 'offline')
     assert.equal(paid?.status, 'pending')
     assert.equal(paid?.paid, true)
     assert.ok(listOpenOrders().some((item) => item.id === order.id))
@@ -165,7 +181,7 @@ describe('order database guards', () => {
     const fighterId = await createFighter('specified-fighter')
     const order = await createOrder({ companionId, unitCount: 1, customerId: 'specified-customer', fighterId })
     assert.equal(order.status, 'unpaid')
-    const paid = payOrder(order.id, { type: 'customer', id: 'specified-customer' }, 'online_mock')
+    const paid = payOrder(order.id, { type: 'admin' }, 'offline')
     assert.equal(paid?.status, 'assigned')
     assert.equal(paid?.fighterId, fighterId)
     assert.equal(paid?.assignedBy, 'customer')
@@ -184,6 +200,41 @@ describe('order database guards', () => {
     const paid = payOrder(order.id, { type: 'admin' }, 'offline')
     assert.equal(paid?.status, 'pending')
     assert.equal(paid?.paymentMethod, 'offline')
+  })
+
+  it('keeps QR payment pending until an admin confirms receipt', async () => {
+    const order = await createOrder({ companionId, unitCount: 1, customerId: 'qr-review-customer' })
+    const review = submitPaymentProof(order.id, 'qr-review-customer', '微信昵称：测试付款人', '测试顾客')
+    assert.equal(review?.status, 'payment_review')
+    assert.equal(review?.paid, false)
+    assert.equal(review?.paymentNote, '微信昵称：测试付款人')
+    assert.ok(!listOpenOrders().some((item) => item.id === order.id))
+
+    const paid = payOrder(order.id, { type: 'admin' }, 'qr_manual')
+    assert.equal(paid?.status, 'pending')
+    assert.equal(paid?.paid, true)
+    assert.equal(paid?.paymentMethod, 'qr_manual')
+  })
+
+  it('keeps QR payment pending after database reinitialization', async () => {
+    const order = await createOrder({ companionId, unitCount: 1, customerId: 'qr-reload-customer' })
+    const review = submitPaymentProof(order.id, 'qr-reload-customer', '微信昵称：重载验证')
+    assert.equal(review?.status, 'payment_review')
+    assert.equal(review?.paid, false)
+
+    closeDatabase()
+    getDb()
+    const reloaded = getOrder(order.id)
+    assert.equal(reloaded?.status, 'payment_review')
+    assert.equal(reloaded?.paid, false)
+  })
+  it('returns a rejected QR payment to unpaid', async () => {
+    const order = await createOrder({ companionId, unitCount: 1, customerId: 'qr-reject-customer' })
+    submitPaymentProof(order.id, 'qr-reject-customer', '支付宝：尾号1234')
+    const rejected = rejectPaymentProof(order.id)
+    assert.equal(rejected?.status, 'unpaid')
+    assert.equal(rejected?.paid, false)
+    assert.equal(rejected?.paymentNote, '')
   })
 
   // ===== 抢单验证码与防脚本 =====
@@ -421,4 +472,140 @@ describe('order database guards', () => {
     assert.ok(stats.totals.orders >= 1)
     assert.ok(Array.isArray(stats.statusBreakdown))
   })
+  // ===== 社区与交易闭环 =====
+  it('keeps community posts pending until moderation publishes them', async () => {
+    const authorId = 'community-author'
+    getOrCreateCommunityProfile(authorId, '战术记录员', '')
+    const post = createCommunityPost({
+      authorId,
+      title: '零号大坝撤离路线复盘',
+      content: '记录三条常用撤离路线，以及遭遇战时的转点原则。',
+      topic: '战术攻略',
+      serviceId: companionId,
+      tags: ['路线', '撤离'],
+    })
+    assert.equal(post.status, 'pending')
+    assert.equal(getCommunityPost(post.id), null)
+
+    const pendingFeed = listCommunityPosts({ status: 'pending', pageSize: 50 })
+    assert.ok(pendingFeed.posts.some((item) => item.id === post.id))
+
+    const published = reviewCommunityPost(post.id, 'published', { featured: true, pinned: true, knowledge: true })
+    assert.equal(published?.status, 'published')
+    assert.equal(published?.featured, true)
+    assert.equal(published?.pinned, true)
+    assert.equal(published?.knowledge, true)
+    assert.ok(published?.publishedAt)
+
+    const knowledgeFeed = listCommunityPosts({ channel: 'knowledge', viewerId: authorId, pageSize: 50 })
+    assert.ok(knowledgeFeed.posts.some((item) => item.id === post.id && item.knowledge))
+  })
+
+  it('supports likes, favorites, comments, follows and notifications', async () => {
+    const authorId = 'community-interaction-author'
+    const readerId = 'community-interaction-reader'
+    getOrCreateCommunityProfile(authorId, '发布者', '')
+    getOrCreateCommunityProfile(readerId, '读者', '')
+    const post = createCommunityPost({
+      authorId,
+      title: '近距离架枪常见误区',
+      content: '讨论掩体、身位和听声辨位，欢迎补充不同打法。',
+      topic: '战术讨论',
+    })
+    reviewCommunityPost(post.id, 'published')
+
+    const liked = toggleCommunityLike(post.id, readerId)
+    assert.deepEqual(liked, { active: true, count: 1 })
+    assert.equal(toggleCommunityLike(post.id, readerId).active, false)
+
+    const favorited = toggleCommunityFavorite(post.id, readerId)
+    assert.deepEqual(favorited, { active: true, count: 1 })
+
+    const comment = createCommunityComment(post.id, readerId, '补充：先确认队友火力线再拉身位。')
+    assert.equal(comment.content, '补充：先确认队友火力线再拉身位。')
+    assert.ok(listCommunityComments(post.id).some((item) => item.id === comment.id))
+
+    const followed = toggleFollow(readerId, authorId)
+    assert.equal(followed.following, true)
+    assert.equal(followed.followerCount, 1)
+    assert.ok(listFollowers(authorId).some((item) => item.customerId === readerId))
+
+    const notifications = listCommunityNotifications(authorId, { pageSize: 50 })
+    const types = new Set(notifications.items.map((item) => item.type))
+    assert.ok(types.has('comment'))
+    assert.ok(types.has('favorite'))
+    assert.ok(types.has('follow'))
+    assert.ok(notifications.unread >= 3)
+    const firstUnread = notifications.items.find((item) => !item.isRead)
+    assert.ok(firstUnread)
+    assert.equal(markCommunityNotificationRead(firstUnread!.id, authorId), true)
+    assert.equal(listCommunityNotifications(authorId).items.find((item) => item.id === firstUnread!.id)?.isRead, true)
+  })
+
+  it('links a post order to completed evidence without leaking private fields', async () => {
+    const authorId = 'community-order-author'
+    const customerId = 'community-order-buyer'
+    getOrCreateCommunityProfile(authorId, '服务复盘员', '')
+    const post = createCommunityPost({
+      authorId,
+      title: '陪玩复盘与固定队沟通',
+      content: '从这条帖子进入下单，用于验证订单和成交凭证回写。',
+      topic: '服务体验',
+      serviceId: companionId,
+    })
+    reviewCommunityPost(post.id, 'published')
+
+    const order = paidOrder(companionId, customerId, {
+      sourcePostId: post.id,
+      customerName: '社区买家',
+      customerPhone: '13800000000',
+    })
+    assert.equal(order.sourcePostId, post.id)
+    assert.equal(listCommunityEvidence(post.id).length, 0)
+    const paidNotifications = listCommunityNotifications(authorId)
+    assert.ok(paidNotifications.items.some((item) => item.type === 'order' && item.content.includes('已付款')))
+
+    const fighter = await createFighter('community-order-fighter')
+    await claimOrder(order.id, fighter, tokenFor(order.id, fighter))
+    await fighterStartOrder(order.id, fighter)
+    requestOrderCompletion(order.id, fighter, { note: '社区闭环验证', proof: ['/api/uploads/community-proof.png'] })
+    const completed = confirmOrderCompletion(order.id)
+    assert.equal(completed?.status, 'completed')
+
+    const evidence = listCommunityEvidence(post.id)
+    assert.equal(evidence.length, 1)
+    assert.equal(evidence[0].orderId, order.id)
+    assert.equal(evidence[0].status, 'completed')
+    assert.equal(Object.prototype.hasOwnProperty.call(evidence[0], 'phone'), false)
+    assert.equal(Object.prototype.hasOwnProperty.call(evidence[0], 'openid'), false)
+
+    const refreshedPost = getCommunityPost(post.id, authorId, true)
+    assert.equal(refreshedPost?.evidenceCount, 1)
+    const completedNotifications = listCommunityNotifications(authorId)
+    assert.ok(completedNotifications.items.some((item) => item.type === 'order' && item.content.includes('成交凭证')))
+  })
+
+  it('rejects a post order when the selected service does not match', async () => {
+    const authorId = 'community-mismatch-author'
+    const post = createCommunityPost({
+      authorId,
+      title: '关联服务一致性测试',
+      content: '帖子关联的必须是当前下单的同一项服务。',
+      topic: '规则说明',
+      serviceId: companionId,
+    })
+    reviewCommunityPost(post.id, 'published')
+    const otherServiceType = await createServiceType({ name: '社区不匹配类型' })
+    const otherCompanion = await createCompanion({
+      serviceTypeId: otherServiceType.id,
+      name: '社区不匹配服务',
+      price: 10,
+      unit: '小时',
+    })
+    assert.throws(
+      () => createOrder({ companionId: otherCompanion.id, sourcePostId: post.id, unitCount: 1, customerId: 'mismatch-buyer' }),
+      /服务与当前选择不一致/,
+    )
+  })
+
 })

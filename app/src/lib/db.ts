@@ -7,6 +7,14 @@ import type {
   AnalyticsTrendPoint,
   Analytics,
   Companion,
+  CommunityComment,
+  CommunityEvidence,
+  CommunityFeed,
+  CommunityNotification,
+  CommunityPost,
+  CommunityPostStatus,
+  CommunityProfile,
+  CommunityProfileView,
   FighterAccount,
   FighterEarnings,
   FighterApplication,
@@ -99,6 +107,7 @@ function ensureSchema(d: DatabaseSync) {
       companionName TEXT NOT NULL,
       serviceTypeId TEXT,
       serviceName TEXT NOT NULL,
+      sourcePostId TEXT DEFAULT '',
       spec TEXT DEFAULT '',
       unitCount REAL NOT NULL,
       price REAL NOT NULL,
@@ -114,6 +123,8 @@ function ensureSchema(d: DatabaseSync) {
       paid INTEGER DEFAULT 0,
       paidAt TEXT DEFAULT '',
       paymentMethod TEXT DEFAULT '',
+      paymentNote TEXT DEFAULT '',
+      paymentSubmittedAt TEXT DEFAULT '',
       customerPhone TEXT DEFAULT '',
       completionNote TEXT DEFAULT '',
       completionProof TEXT DEFAULT '[]',
@@ -248,6 +259,87 @@ function ensureSchema(d: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS idx_ai_message_conversation ON AiMessage (conversationId, createdAt ASC);
     CREATE INDEX IF NOT EXISTS idx_ai_knowledge_enabled ON AiKnowledgeChunk (enabled, category);
 
+    CREATE TABLE IF NOT EXISTS CommunityProfile (
+      customerId TEXT PRIMARY KEY,
+      nickname TEXT DEFAULT '',
+      avatarUrl TEXT DEFAULT '',
+      bio TEXT DEFAULT '',
+      level INTEGER DEFAULT 1,
+      contributionScore INTEGER DEFAULT 0,
+      postCount INTEGER DEFAULT 0,
+      followerCount INTEGER DEFAULT 0,
+      followingCount INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS CommunityPost (
+      id TEXT PRIMARY KEY,
+      authorId TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      topic TEXT DEFAULT '战术交流',
+      status TEXT DEFAULT 'pending',
+      featured INTEGER DEFAULT 0,
+      pinned INTEGER DEFAULT 0,
+      knowledge INTEGER DEFAULT 0,
+      serviceId TEXT DEFAULT '',
+      serviceName TEXT DEFAULT '',
+      images TEXT DEFAULT '[]',
+      tags TEXT DEFAULT '[]',
+      likeCount INTEGER DEFAULT 0,
+      favoriteCount INTEGER DEFAULT 0,
+      commentCount INTEGER DEFAULT 0,
+      viewCount INTEGER DEFAULT 0,
+      orderCount INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      publishedAt TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS CommunityComment (
+      id TEXT PRIMARY KEY,
+      postId TEXT NOT NULL,
+      authorId TEXT NOT NULL,
+      parentId TEXT DEFAULT '',
+      content TEXT NOT NULL,
+      status TEXT DEFAULT 'published',
+      likeCount INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS CommunityPostLike (
+      postId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (postId, userId)
+    );
+    CREATE TABLE IF NOT EXISTS CommunityPostFavorite (
+      postId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (postId, userId)
+    );
+    CREATE TABLE IF NOT EXISTS CommunityFollow (
+      followerId TEXT NOT NULL,
+      followingId TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (followerId, followingId)
+    );
+    CREATE TABLE IF NOT EXISTS CommunityNotification (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      actorId TEXT DEFAULT '',
+      type TEXT DEFAULT 'system',
+      postId TEXT DEFAULT '',
+      content TEXT DEFAULT '',
+      isRead INTEGER DEFAULT 0,
+      createdAt TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_community_post_feed ON CommunityPost (status, pinned DESC, createdAt DESC);
+    CREATE INDEX IF NOT EXISTS idx_community_post_author ON CommunityPost (authorId, createdAt DESC);
+    CREATE INDEX IF NOT EXISTS idx_community_post_knowledge ON CommunityPost (knowledge, status, createdAt DESC);
+    CREATE INDEX IF NOT EXISTS idx_community_comment_post ON CommunityComment (postId, status, createdAt ASC);
+    CREATE INDEX IF NOT EXISTS idx_community_notification_user ON CommunityNotification (userId, isRead, createdAt DESC);
+    CREATE INDEX IF NOT EXISTS idx_community_follow_following ON CommunityFollow (followingId, createdAt DESC);
     CREATE INDEX IF NOT EXISTS idx_companion_serv ON Companion (serviceTypeId, status, deleted);
     CREATE INDEX IF NOT EXISTS idx_companion_status ON Companion (status, deleted);
     CREATE INDEX IF NOT EXISTS idx_order_status ON "Order" (status);
@@ -287,6 +379,8 @@ function ensureSchema(d: DatabaseSync) {
   addOrderColumn('paid', 'paid INTEGER DEFAULT 0')
   addOrderColumn('paidAt', "paidAt TEXT DEFAULT ''")
   addOrderColumn('paymentMethod', "paymentMethod TEXT DEFAULT ''")
+  addOrderColumn('paymentNote', "paymentNote TEXT DEFAULT ''")
+  addOrderColumn('paymentSubmittedAt', "paymentSubmittedAt TEXT DEFAULT ''")
   addOrderColumn('customerPhone', "customerPhone TEXT DEFAULT ''")
   addOrderColumn('completionNote', "completionNote TEXT DEFAULT ''")
   addOrderColumn('completionProof', "completionProof TEXT DEFAULT '[]'")
@@ -296,6 +390,7 @@ function ensureSchema(d: DatabaseSync) {
   addOrderColumn('mapName', "mapName TEXT DEFAULT ''")
   addOrderColumn('inGameId', "inGameId TEXT DEFAULT ''")
   addOrderColumn('idempotencyKey', "idempotencyKey TEXT DEFAULT ''")
+  addOrderColumn('sourcePostId', "sourcePostId TEXT DEFAULT ''")
   const addOrderIntegerColumn = (name: string) => {
     if (!orderCols.some((c) => c.name === name)) d.exec(`ALTER TABLE "Order" ADD COLUMN ${name} INTEGER DEFAULT NULL`)
   }
@@ -320,8 +415,14 @@ function ensureSchema(d: DatabaseSync) {
     UPDATE Withdrawal SET amountCents = CAST(ROUND(amount * 100) AS INTEGER) WHERE amountCents IS NULL OR amountCents = 0;
   `)
 
-  // 老库一次性迁移：新增“付款”流程前已存在的订单一律视为已付款（旧流程没有待付款环节）
-  d.exec(`UPDATE "Order" SET paid = 1 WHERE status != 'unpaid' AND (paid IS NULL OR paid = 0)`);
+  // 老库一次性迁移：新增“付款”流程前已存在的订单一律视为已付款（旧流程没有待付款环节）。
+  // 必须使用标记避免模块重载时重复执行，否则新的 payment_review 订单会被误写成已付款。
+  const legacyPaidMigrationKey = 'migration.legacy_order_paid.v1'
+  const legacyPaidMigration = d.prepare('SELECT value FROM AppSetting WHERE key = ?').get(legacyPaidMigrationKey) as any
+  if (!legacyPaidMigration) {
+    d.exec(`UPDATE "Order" SET paid = 1 WHERE status NOT IN ('unpaid', 'payment_review') AND (paid IS NULL OR paid = 0)`)
+    d.prepare('INSERT OR REPLACE INTO AppSetting (key, value) VALUES (?, ?)').run(legacyPaidMigrationKey, 'done')
+  }
   const appCols = d.prepare('PRAGMA table_info(FighterApplication)').all() as any[]
   if (!appCols.some((c) => c.name === 'username')) d.exec("ALTER TABLE FighterApplication ADD COLUMN username TEXT DEFAULT ''")
   if (!appCols.some((c) => c.name === 'passwordHash')) d.exec("ALTER TABLE FighterApplication ADD COLUMN passwordHash TEXT DEFAULT ''")
@@ -341,6 +442,7 @@ function ensureSchema(d: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS idx_order_pending_created ON "Order" (status, fighterId, createdAt DESC);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_order_idempotency ON "Order" (idempotencyKey) WHERE idempotencyKey <> '';
     CREATE UNIQUE INDEX IF NOT EXISTS idx_fighter_account_openid ON FighterAccount (openid) WHERE openid <> '';
+    CREATE INDEX IF NOT EXISTS idx_order_source_post ON "Order" (sourcePostId, status);
   `)
 }
 
@@ -409,6 +511,7 @@ function oRow(r: any): Order {
     companionName: r.companionName,
     serviceTypeId: r.serviceTypeId,
     serviceName: r.serviceName,
+    sourcePostId: r.sourcePostId || '',
     spec: r.spec || '',
     unitCount: r.unitCount,
     price: centsToYuan(r.priceCents ?? r.price),
@@ -429,6 +532,8 @@ function oRow(r: any): Order {
     paid: !!r.paid,
     paidAt: r.paidAt || '',
     paymentMethod: r.paymentMethod || '',
+    paymentNote: r.paymentNote || '',
+    paymentSubmittedAt: r.paymentSubmittedAt || '',
     customerPhone: r.customerPhone || '',
     completionNote: r.completionNote || '',
     completionProof: (() => { try { const a = JSON.parse(r.completionProof || '[]'); return Array.isArray(a) ? a.map(String) : [] } catch { return [] } })(),
@@ -747,6 +852,7 @@ export function countUsedTrialThisWeek(customerId: string): number {
 
 export function createOrder(input: {
   companionId: string
+  sourcePostId?: string
   unitCount: number
   spec?: string
   price?: number
@@ -776,6 +882,12 @@ export function createOrder(input: {
   const c = getCompanion(input.companionId)
   if (!c || c.status !== 1) throw new Error('该陪玩已下架，请重新选择')
   const st = listServiceTypes(true).find((s) => s.id === c.serviceTypeId)
+  const sourcePostId = String(input.sourcePostId || '').trim()
+  if (sourcePostId) {
+    const post = d.prepare('SELECT id, status, serviceId FROM CommunityPost WHERE id = ?').get(sourcePostId) as any
+    if (!post || post.status !== 'published') throw new Error('关联帖子不可用或尚未审核通过')
+    if (post.serviceId !== c.id) throw new Error('帖子关联的服务与当前选择不一致，请重新进入帖子下单')
+  }
   const id = genId()
   const now = nowLocal()
   const unitCount = input.unitCount
@@ -796,8 +908,8 @@ export function createOrder(input: {
   try {
     const orderNo = genOrderNo(d)
   d.prepare(
-      `INSERT INTO "Order" (id, orderNo, companionId, companionName, serviceTypeId, serviceName, spec, unitCount, price, priceCents, amount, amountCents, gameField, gameMode, mapName, inGameId, "rank", remark, status, customerId, customerName, customerPhone, fighterId, fighterName, assignedBy, isTrial, platformRate, fighterIncome, fighterIncomeCents, idempotencyKey, createdAt, updatedAt)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO "Order" (id, orderNo, companionId, companionName, serviceTypeId, serviceName, sourcePostId, spec, unitCount, price, priceCents, amount, amountCents, gameField, gameMode, mapName, inGameId, "rank", remark, status, customerId, customerName, customerPhone, fighterId, fighterName, assignedBy, isTrial, platformRate, fighterIncome, fighterIncomeCents, idempotencyKey, createdAt, updatedAt)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     id,
     orderNo,
@@ -805,6 +917,7 @@ export function createOrder(input: {
     c.name,
     c.serviceTypeId,
     st?.name || '陪玩',
+    String(input.sourcePostId || '').trim(),
     input.spec || '',
     unitCount,
     unitPriceCents / 100,
@@ -836,7 +949,9 @@ export function createOrder(input: {
       unitPriceCents,
       amountCents,
       fighterId: fighter?.id || '',
+      sourcePostId,
     })
+    if (sourcePostId) syncPostOrderCount(sourcePostId, d)
     d.exec('COMMIT')
   } catch (error) {
     d.exec('ROLLBACK')
@@ -849,33 +964,93 @@ export function createOrder(input: {
   return getOrder(id)!
 }
 
-// 付款：把“待付款”订单变成“待接单”（进入公共池或指派给下单时指定的打手）。
-// 支持顾客端模拟支付和管理员“线下已收款”两种来源，重复调用幂等。
+// 顾客提交扫码付款凭证：订单进入“待确认收款”，不会提前进入抢单池。
+// 是否真正到账由管理员核对账单后确认，避免顾客伪造“已付款”直接解锁订单。
+export function submitPaymentProof(
+  orderId: string,
+  customerId: string,
+  note: string,
+  customerName = '',
+): Order | null {
+  const cleanNote = note.trim().slice(0, 200)
+  if (cleanNote.length < 2) throw new Error('请填写付款人昵称、转账备注或后四位，至少 2 个字')
+  const d = getDb()
+  const cur = d.prepare('SELECT id, customerId, status, paid, paymentNote FROM "Order" WHERE id = ?').get(orderId) as any
+  if (!cur) throw new Error('订单不存在')
+  if (cur.customerId && cur.customerId !== customerId) throw new Error('无权操作该订单')
+  if (cur.paid) return getOrder(orderId)
+  if (!['unpaid', 'payment_review'].includes(cur.status)) throw new Error('当前订单状态不允许提交付款信息')
+
+  const now = nowLocal()
+  const result = d.prepare(
+    `UPDATE "Order"
+     SET status = 'payment_review', paymentNote = ?, paymentSubmittedAt = ?, updatedAt = ?
+     WHERE id = ? AND status IN ('unpaid', 'payment_review')`,
+  ).run(cleanNote, now, now, orderId)
+  if (!result.changes) throw new Error('订单状态已变化，请刷新后重试')
+
+  const eventAction = cur.status === 'payment_review' ? 'update_payment' : 'submit_payment'
+  recordOrderEvent(d, orderId, eventAction, cur.status, 'payment_review', 'customer', customerId, customerName, {
+    paymentNote: cleanNote,
+  })
+  return getOrder(orderId)
+}
+
+// 管理员核对后未收到款：退回待付款，顾客可以重新付款，仍不会进入抢单池。
+export function rejectPaymentProof(orderId: string): Order | null {
+  const d = getDb()
+  const cur = d.prepare('SELECT id, status, paymentNote FROM "Order" WHERE id = ?').get(orderId) as any
+  if (!cur) throw new Error('订单不存在')
+  if (cur.status !== 'payment_review') throw new Error('订单不在待确认收款状态')
+  const now = nowLocal()
+  const result = d.prepare(
+    `UPDATE "Order"
+     SET status = 'unpaid', paymentNote = '', paymentSubmittedAt = '', updatedAt = ?
+     WHERE id = ? AND status = 'payment_review'`,
+  ).run(now, orderId)
+  if (!result.changes) throw new Error('订单状态已变化，请刷新后重试')
+  recordOrderEvent(d, orderId, 'reject_payment', 'payment_review', 'unpaid', 'admin', 'admin', '', {
+    rejectedPaymentNote: cur.paymentNote || '',
+  })
+  return getOrder(orderId)
+}
+
+// 付款：把“待付款/待确认收款”订单变成“待接单”（进入公共池或指派给下单时指定的打手）。
+// 只应由管理员确认到账或未来的官方支付回调调用，重复调用幂等。
 export function payOrder(
   orderId: string,
-  actor: { type: 'customer' | 'admin'; id?: string; name?: string },
+  actor: { type: 'admin' | 'system'; id?: string; name?: string },
   method: string,
 ): Order | null {
   const d = getDb()
-  const cur = d.prepare('SELECT id, status, paid, fighterId, fighterName, assignedBy FROM "Order" WHERE id = ?').get(orderId) as any
+  const cur = d.prepare('SELECT id, status, paid, fighterId, fighterName, assignedBy, sourcePostId, customerId FROM "Order" WHERE id = ?').get(orderId) as any
   if (!cur) throw new Error('订单不存在')
-  if (cur.paid && cur.status !== 'unpaid') return getOrder(orderId) // 已付款，幂等返回
-  if (cur.status !== 'unpaid') throw new Error('当前订单状态不允许付款')
+  if (cur.paid && !['unpaid', 'payment_review'].includes(cur.status)) return getOrder(orderId) // 已付款，幂等返回
+  if (!['unpaid', 'payment_review'].includes(cur.status)) throw new Error('当前订单状态不允许付款')
+  const fromStatus = cur.status
   const now = nowLocal()
   const toStatus = cur.fighterId ? 'assigned' : 'pending'
   const result = d.prepare(
-    "UPDATE \"Order\" SET paid = 1, paidAt = ?, paymentMethod = ?, status = ?, updatedAt = ? WHERE id = ? AND status = 'unpaid'",
+    "UPDATE \"Order\" SET paid = 1, paidAt = ?, paymentMethod = ?, status = ?, updatedAt = ? WHERE id = ? AND status IN ('unpaid', 'payment_review')",
   ).run(now, method, toStatus, now, orderId)
   if (!result.changes) throw new Error('订单状态已变化，请刷新后重试')
   const order = getOrder(orderId)
   if (order) {
-    recordOrderEvent(d, orderId, 'pay', 'unpaid', toStatus, actor.type, actor.id || '', actor.name || '', {
+    recordOrderEvent(d, orderId, 'pay', fromStatus, toStatus, actor.type, actor.id || '', actor.name || '', {
       method,
       amount: order.amount,
       fighterId: cur.fighterId || '',
     })
     if (cur.fighterId && cur.assignedBy === 'customer') {
-      recordOrderEvent(d, orderId, 'assign', 'unpaid', toStatus, 'customer', actor.id || '', actor.name || '', { fighterId: cur.fighterId })
+      recordOrderEvent(d, orderId, 'assign', fromStatus, toStatus, 'customer', actor.id || '', actor.name || '', { fighterId: cur.fighterId })
+    }
+    if (cur.sourcePostId) {
+      const sourcePost = d.prepare('SELECT authorId FROM CommunityPost WHERE id = ?').get(cur.sourcePostId) as any
+      if (sourcePost?.authorId && sourcePost.authorId !== order.customerId) {
+        d.prepare(
+          'INSERT INTO CommunityNotification (id, userId, actorId, type, postId, content, isRead, createdAt) VALUES (?,?,?,?,?,?,0,?)',
+        ).run(genId(), sourcePost.authorId, order.customerId, 'order', cur.sourcePostId, '你的帖子带来一笔已付款订单', now)
+      }
     }
   }
   return getOrder(orderId)
@@ -910,7 +1085,7 @@ export function getOrder(id: string): Order | null {
   return r ? oRow(r) : null
 }
 
-const VALID_STATUS: OrderStatus[] = ['unpaid', 'pending', 'assigned', 'in_progress', 'completion_pending', 'completed', 'cancelled']
+const VALID_STATUS: OrderStatus[] = ['unpaid', 'payment_review', 'pending', 'assigned', 'in_progress', 'completion_pending', 'completed', 'cancelled']
 
 export function updateOrderStatus(
   id: string,
@@ -923,7 +1098,7 @@ export function updateOrderStatus(
   if (!cur) return null
   // 通用状态接口只允许“取消订单”，防止绕过业务状态机直接把订单改成已完成等状态
   if (status !== 'cancelled') throw new Error('当前订单状态不允许该操作')
-  if (!['unpaid', 'pending', 'assigned', 'in_progress'].includes(cur.status)) throw new Error('当前订单状态不允许取消')
+  if (!['unpaid', 'payment_review', 'pending', 'assigned', 'in_progress'].includes(cur.status)) throw new Error('当前订单状态不允许取消')
   const now = nowLocal()
   d.exec('BEGIN IMMEDIATE')
   try {
@@ -1265,10 +1440,20 @@ export function requestOrderCompletion(orderId: string, fighterId: string, input
 }
 
 export function confirmOrderCompletion(orderId: string): Order | null {
+  const d = getDb()
   const now = nowLocal()
-  const result = getDb().prepare(`UPDATE "Order" SET status = 'completed', completedAt = ?, updatedAt = ? WHERE id = ? AND status = 'completion_pending'`).run(now, now, orderId)
+  const current = d.prepare('SELECT sourcePostId, customerId FROM "Order" WHERE id = ?').get(orderId) as any
+  const result = d.prepare(`UPDATE "Order" SET status = 'completed', completedAt = ?, updatedAt = ? WHERE id = ? AND status = 'completion_pending'`).run(now, now, orderId)
   if (!result.changes) throw new Error('订单不在待确认状态')
-  recordOrderEvent(getDb(), orderId, 'complete', 'completion_pending', 'completed', 'admin')
+  recordOrderEvent(d, orderId, 'complete', 'completion_pending', 'completed', 'admin')
+  if (current?.sourcePostId) {
+    const sourcePost = d.prepare('SELECT authorId FROM CommunityPost WHERE id = ?').get(current.sourcePostId) as any
+    if (sourcePost?.authorId) {
+      d.prepare(
+        'INSERT INTO CommunityNotification (id, userId, actorId, type, postId, content, isRead, createdAt) VALUES (?,?,?,?,?,?,0,?)',
+      ).run(genId(), sourcePost.authorId, 'system', 'order', current.sourcePostId, '关联帖子的成交凭证已回写', now)
+    }
+  }
   return getOrder(orderId)
 }
 
@@ -1585,4 +1770,620 @@ export function getAnalytics(filters: AnalyticsFilters = {}): Analytics {
     companionBreakdown: analyticsBreakdown('companionName', where, args),
     recentOrders: recentRows.map(oRow),
   }
+}
+﻿
+// ===== Community =====
+const COMMUNITY_POST_STATUSES: CommunityPostStatus[] = ['draft', 'pending', 'published', 'rejected', 'hidden']
+const COMMUNITY_TOPIC_FALLBACK = '战术交流'
+
+function parseStringArray(raw: unknown): string[] {
+  try {
+    const value = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return Array.isArray(value) ? value.map((item) => String(item)).slice(0, 12) : []
+  } catch {
+    return []
+  }
+}
+
+function cleanCommunityText(value: unknown, max = 200): string {
+  return String(value ?? '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .trim()
+    .slice(0, max)
+}
+
+function normalizeTags(value: unknown): string[] {
+  return parseStringArray(value)
+    .map((tag) => cleanCommunityText(tag, 16))
+    .filter(Boolean)
+    .slice(0, 6)
+}
+
+function normalizeImages(value: unknown): string[] {
+  return parseStringArray(value)
+    .map((url) => cleanCommunityText(url, 500))
+    .filter((url) => /^(https?:\/\/|\/api\/uploads\/)/.test(url))
+    .slice(0, 6)
+}
+
+function communityProfileRow(r: any): CommunityProfile {
+  return {
+    customerId: r.customerId,
+    nickname: r.nickname || 'VOID指挥官',
+    avatarUrl: r.avatarUrl || '',
+    bio: r.bio || '',
+    level: Number(r.level || 1),
+    contributionScore: Number(r.contributionScore || 0),
+    postCount: Number(r.postCount || 0),
+    followerCount: Number(r.followerCount || 0),
+    followingCount: Number(r.followingCount || 0),
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }
+}
+
+function communityPostRow(r: any): CommunityPost {
+  return {
+    id: r.id,
+    authorId: r.authorId,
+    authorName: r.authorName || 'VOID指挥官',
+    authorAvatar: r.authorAvatar || '',
+    authorLevel: Number(r.authorLevel || 1),
+    title: r.title,
+    content: r.content,
+    topic: r.topic || COMMUNITY_TOPIC_FALLBACK,
+    status: r.status as CommunityPostStatus,
+    featured: !!r.featured,
+    pinned: !!r.pinned,
+    knowledge: !!r.knowledge,
+    serviceId: r.serviceId || '',
+    serviceName: r.serviceName || '',
+    images: parseStringArray(r.images),
+    tags: parseStringArray(r.tags),
+    likeCount: Number(r.likeCount || 0),
+    favoriteCount: Number(r.favoriteCount || 0),
+    commentCount: Number(r.commentCount || 0),
+    viewCount: Number(r.viewCount || 0),
+    orderCount: Number(r.liveOrderCount ?? r.orderCount ?? 0),
+    evidenceCount: Number(r.evidenceCount || 0),
+    liked: !!r.liked,
+    favorited: !!r.favorited,
+    followingAuthor: !!r.followingAuthor,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    publishedAt: r.publishedAt || '',
+  }
+}
+
+function communityCommentRow(r: any): CommunityComment {
+  return {
+    id: r.id,
+    postId: r.postId,
+    authorId: r.authorId,
+    authorName: r.authorName || 'VOID指挥官',
+    authorAvatar: r.authorAvatar || '',
+    parentId: r.parentId || '',
+    content: r.content,
+    status: r.status === 'hidden' ? 'hidden' : 'published',
+    likeCount: Number(r.likeCount || 0),
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }
+}
+
+function communityNotificationRow(r: any): CommunityNotification {
+  return {
+    id: r.id,
+    userId: r.userId,
+    actorId: r.actorId || '',
+    actorName: r.actorName || 'VOID System',
+    actorAvatar: r.actorAvatar || '',
+    type: r.type || 'system',
+    postId: r.postId || '',
+    content: r.content || '',
+    isRead: !!r.isRead,
+    createdAt: r.createdAt,
+  }
+}
+
+function communityEvidenceRow(r: any): CommunityEvidence {
+  return {
+    orderId: r.id,
+    orderNo: r.orderNo,
+    companionName: r.companionName,
+    serviceName: r.serviceName,
+    unitCount: Number(r.unitCount || 0),
+    amount: centsToYuan(r.amountCents ?? r.amount),
+    completedAt: r.completedAt || r.updatedAt || r.createdAt,
+    status: 'completed',
+  }
+}
+
+function refreshCommunityProfileStats(customerId: string, d = getDb()): void {
+  d.prepare(
+    `UPDATE CommunityProfile
+     SET postCount = (SELECT COUNT(*) FROM CommunityPost p WHERE p.authorId = CommunityProfile.customerId AND p.status = 'published'),
+         followerCount = (SELECT COUNT(*) FROM CommunityFollow f WHERE f.followingId = CommunityProfile.customerId),
+         followingCount = (SELECT COUNT(*) FROM CommunityFollow f WHERE f.followerId = CommunityProfile.customerId),
+         contributionScore = (
+           (SELECT COUNT(*) FROM CommunityPost p WHERE p.authorId = CommunityProfile.customerId AND p.status = 'published') * 10 +
+           (SELECT COUNT(*) FROM CommunityComment c JOIN CommunityPost p ON p.id = c.postId WHERE p.authorId = CommunityProfile.customerId AND c.status = 'published') * 2 +
+           (SELECT COUNT(*) FROM CommunityPostLike l JOIN CommunityPost p ON p.id = l.postId WHERE p.authorId = CommunityProfile.customerId) +
+           (SELECT COUNT(*) FROM "Order" o WHERE o.customerId = CommunityProfile.customerId AND o.status = 'completed' AND o.paid = 1) * 5
+         ),
+         updatedAt = ?
+     WHERE customerId = ?`,
+  ).run(nowLocal(), customerId)
+  const scoreRow = d.prepare('SELECT contributionScore FROM CommunityProfile WHERE customerId = ?').get(customerId) as any
+  const score = Number(scoreRow?.contributionScore || 0)
+  d.prepare('UPDATE CommunityProfile SET level = ? WHERE customerId = ?').run(
+    score >= 2000 ? 8 : score >= 1000 ? 7 : score >= 600 ? 6 : score >= 360 ? 5 : score >= 180 ? 4 : score >= 80 ? 3 : score >= 30 ? 2 : 1,
+    customerId,
+  )
+}
+
+export function getOrCreateCommunityProfile(customerId: string, nickname = '', avatarUrl = ''): CommunityProfile {
+  const id = cleanCommunityText(customerId, 120)
+  if (!id) throw new Error('缺少社区身份')
+  const d = getDb()
+  const existing = d.prepare('SELECT * FROM CommunityProfile WHERE customerId = ?').get(id) as any
+  const now = nowLocal()
+  if (existing) {
+    const nextNickname = cleanCommunityText(nickname, 30) || existing.nickname || 'VOID指挥官'
+    const nextAvatar = cleanCommunityText(avatarUrl, 500) || existing.avatarUrl || ''
+    d.prepare('UPDATE CommunityProfile SET nickname = ?, avatarUrl = ?, updatedAt = ? WHERE customerId = ?').run(nextNickname, nextAvatar, now, id)
+  } else {
+    d.prepare(
+      `INSERT INTO CommunityProfile (customerId, nickname, avatarUrl, bio, level, contributionScore, postCount, followerCount, followingCount, createdAt, updatedAt)
+       VALUES (?,?,?,?,1,0,0,0,0,?,?)`,
+    ).run(id, cleanCommunityText(nickname, 30) || 'VOID指挥官', cleanCommunityText(avatarUrl, 500), '', now, now)
+  }
+  refreshCommunityProfileStats(id, d)
+  return communityProfileRow(d.prepare('SELECT * FROM CommunityProfile WHERE customerId = ?').get(id))
+}
+
+export function getCommunityProfile(customerId: string): CommunityProfile | null {
+  const id = cleanCommunityText(customerId, 120)
+  if (!id) return null
+  const row = getDb().prepare('SELECT * FROM CommunityProfile WHERE customerId = ?').get(id) as any
+  return row ? communityProfileRow(row) : null
+}
+
+export function updateCommunityProfile(customerId: string, patch: { nickname?: string; avatarUrl?: string; bio?: string }): CommunityProfile {
+  const profile = getOrCreateCommunityProfile(customerId, patch.nickname || '', patch.avatarUrl || '')
+  const nickname = patch.nickname === undefined ? profile.nickname : cleanCommunityText(patch.nickname, 30) || 'VOID指挥官'
+  const avatarUrl = patch.avatarUrl === undefined ? profile.avatarUrl : cleanCommunityText(patch.avatarUrl, 500)
+  const bio = patch.bio === undefined ? profile.bio : cleanCommunityText(patch.bio, 160)
+  getDb().prepare('UPDATE CommunityProfile SET nickname = ?, avatarUrl = ?, bio = ?, updatedAt = ? WHERE customerId = ?').run(nickname, avatarUrl, bio, nowLocal(), customerId)
+  return communityProfileRow(getDb().prepare('SELECT * FROM CommunityProfile WHERE customerId = ?').get(customerId))
+}
+
+export function listCommunityProfiles(input: { keyword?: string; page?: number; pageSize?: number } = {}) {
+  const page = Math.max(1, Number(input.page) || 1)
+  const pageSize = Math.min(Math.max(1, Number(input.pageSize) || 20), 50)
+  const keyword = cleanCommunityText(input.keyword, 40)
+  const where = keyword ? 'WHERE nickname LIKE ?' : ''
+  const args = keyword ? [`%${keyword}%`] : []
+  const total = Number((getDb().prepare(`SELECT COUNT(*) AS n FROM CommunityProfile ${where}`).get(...args) as any)?.n || 0)
+  const rows = getDb().prepare(`SELECT * FROM CommunityProfile ${where} ORDER BY contributionScore DESC, updatedAt DESC LIMIT ? OFFSET ?`).all(...args, pageSize, (page - 1) * pageSize) as any[]
+  return { users: rows.map(communityProfileRow), total, page, pageSize }
+}
+
+export function createCommunityPost(input: {
+  authorId: string
+  title: string
+  content: string
+  topic?: string
+  serviceId?: string
+  images?: string[]
+  tags?: string[]
+}) {
+  const authorId = cleanCommunityText(input.authorId, 120)
+  if (!authorId) throw new Error('请先登录后发帖')
+  const title = cleanCommunityText(input.title, 80)
+  const content = cleanCommunityText(input.content, 5000)
+  if (title.length < 2) throw new Error('标题至少需要 2 个字')
+  if (content.length < 5) throw new Error('正文至少需要 5 个字')
+  const serviceId = cleanCommunityText(input.serviceId, 120)
+  let serviceName = ''
+  if (serviceId) {
+    const companion = getCompanion(serviceId)
+    if (!companion || companion.status !== 1) throw new Error('关联陪玩服务不可用')
+    serviceName = companion.name
+  }
+  getOrCreateCommunityProfile(authorId)
+  const id = genId()
+  const now = nowLocal()
+  const topic = cleanCommunityText(input.topic, 20) || COMMUNITY_TOPIC_FALLBACK
+  getDb().prepare(
+    `INSERT INTO CommunityPost (id, authorId, title, content, topic, status, featured, pinned, knowledge, serviceId, serviceName, images, tags, likeCount, favoriteCount, commentCount, viewCount, orderCount, createdAt, updatedAt, publishedAt)
+     VALUES (?,?,?,?,?,'pending',0,0,0,?,?,?,?,0,0,0,0,0,?,?,'')`,
+  ).run(id, authorId, title, content, topic, serviceId, serviceName, JSON.stringify(normalizeImages(input.images)), JSON.stringify(normalizeTags(input.tags)), now, now)
+  return getCommunityPost(id, authorId, true)!
+}
+
+export function updateCommunityPost(id: string, authorId: string, patch: { title?: string; content?: string; topic?: string; serviceId?: string; images?: string[]; tags?: string[] }) {
+  const d = getDb()
+  const current = d.prepare('SELECT * FROM CommunityPost WHERE id = ?').get(id) as any
+  if (!current) throw new Error('帖子不存在')
+  if (current.authorId !== authorId) throw new Error('只能编辑自己的帖子')
+  const title = patch.title === undefined ? current.title : cleanCommunityText(patch.title, 80)
+  const content = patch.content === undefined ? current.content : cleanCommunityText(patch.content, 5000)
+  if (title.length < 2 || content.length < 5) throw new Error('标题或正文太短')
+  let serviceId = current.serviceId || ''
+  let serviceName = current.serviceName || ''
+  if (patch.serviceId !== undefined) {
+    serviceId = cleanCommunityText(patch.serviceId, 120)
+    serviceName = ''
+    if (serviceId) {
+      const companion = getCompanion(serviceId)
+      if (!companion || companion.status !== 1) throw new Error('关联陪玩服务不可用')
+      serviceName = companion.name
+    }
+  }
+  d.prepare(
+    `UPDATE CommunityPost SET title = ?, content = ?, topic = ?, serviceId = ?, serviceName = ?, images = ?, tags = ?, status = 'pending', updatedAt = ? WHERE id = ?`,
+  ).run(
+    title,
+    content,
+    patch.topic === undefined ? current.topic : cleanCommunityText(patch.topic, 20) || COMMUNITY_TOPIC_FALLBACK,
+    serviceId,
+    serviceName,
+    patch.images === undefined ? current.images : JSON.stringify(normalizeImages(patch.images)),
+    patch.tags === undefined ? current.tags : JSON.stringify(normalizeTags(patch.tags)),
+    nowLocal(),
+    id,
+  )
+  return getCommunityPost(id, authorId, true)
+}
+
+export function deleteCommunityPost(id: string, actorId: string): boolean {
+  const d = getDb()
+  const current = d.prepare('SELECT authorId FROM CommunityPost WHERE id = ?').get(id) as any
+  if (!current) return false
+  if (current.authorId !== actorId) throw new Error('只能删除自己的帖子')
+  d.exec('BEGIN IMMEDIATE')
+  try {
+    d.prepare('DELETE FROM CommunityComment WHERE postId = ?').run(id)
+    d.prepare('DELETE FROM CommunityPostLike WHERE postId = ?').run(id)
+    d.prepare('DELETE FROM CommunityPostFavorite WHERE postId = ?').run(id)
+    d.prepare('DELETE FROM CommunityNotification WHERE postId = ?').run(id)
+    d.prepare('DELETE FROM CommunityPost WHERE id = ?').run(id)
+    d.exec('COMMIT')
+  } catch (error) {
+    d.exec('ROLLBACK')
+    throw error
+  }
+  refreshCommunityProfileStats(current.authorId, d)
+  return true
+}
+
+export function reviewCommunityPost(id: string, status: CommunityPostStatus, flags: { featured?: boolean; pinned?: boolean; knowledge?: boolean } = {}) {
+  if (!COMMUNITY_POST_STATUSES.includes(status)) throw new Error('无效的帖子状态')
+  const d = getDb()
+  const current = d.prepare('SELECT * FROM CommunityPost WHERE id = ?').get(id) as any
+  if (!current) throw new Error('帖子不存在')
+  const now = nowLocal()
+  const publishedAt = status === 'published' && !current.publishedAt ? now : current.publishedAt || ''
+  d.prepare(
+    `UPDATE CommunityPost SET status = ?, featured = ?, pinned = ?, knowledge = ?, publishedAt = ?, updatedAt = ? WHERE id = ?`,
+  ).run(
+    status,
+    flags.featured === undefined ? current.featured : flags.featured ? 1 : 0,
+    flags.pinned === undefined ? current.pinned : flags.pinned ? 1 : 0,
+    flags.knowledge === undefined ? current.knowledge : flags.knowledge ? 1 : 0,
+    publishedAt,
+    now,
+    id,
+  )
+  if (status === 'published') {
+    d.prepare(
+      'INSERT INTO CommunityNotification (id, userId, actorId, type, postId, content, isRead, createdAt) VALUES (?,?,?,?,?,?,0,?)',
+    ).run(genId(), current.authorId, 'system', 'moderation', id, '你的帖子已通过审核并发布', now)
+  }
+  refreshCommunityProfileStats(current.authorId, d)
+  return getCommunityPost(id, '', true)
+}
+
+export function syncPostOrderCount(postId: string, database = getDb()): void {
+  const id = cleanCommunityText(postId, 120)
+  if (!id) return
+  const row = database.prepare(`SELECT COUNT(*) AS n FROM "Order" WHERE sourcePostId = ? AND status != 'cancelled'`).get(id) as any
+  database.prepare('UPDATE CommunityPost SET orderCount = ?, updatedAt = ? WHERE id = ?').run(Number(row?.n || 0), nowLocal(), id)
+}
+﻿
+const COMMUNITY_POST_SELECT = `
+  SELECT p.*,
+    COALESCE(pr.nickname, 'VOID指挥官') AS authorName,
+    COALESCE(pr.avatarUrl, '') AS authorAvatar,
+    COALESCE(pr.level, 1) AS authorLevel,
+    (SELECT COUNT(*) FROM CommunityPostLike l WHERE l.postId = p.id AND l.userId = ?) AS liked,
+    (SELECT COUNT(*) FROM CommunityPostFavorite f WHERE f.postId = p.id AND f.userId = ?) AS favorited,
+    (SELECT COUNT(*) FROM CommunityFollow cf WHERE cf.followerId = ? AND cf.followingId = p.authorId) AS followingAuthor,
+    (SELECT COUNT(*) FROM "Order" o WHERE o.sourcePostId = p.id AND o.status != 'cancelled') AS liveOrderCount,
+    (SELECT COUNT(*) FROM "Order" o WHERE o.sourcePostId = p.id AND o.status = 'completed' AND o.paid = 1) AS evidenceCount
+  FROM CommunityPost p
+  LEFT JOIN CommunityProfile pr ON pr.customerId = p.authorId
+`
+
+export function listCommunityPosts(opts: {
+  channel?: 'recommend' | 'follow' | 'knowledge' | 'latest' | 'profile'
+  topic?: string
+  keyword?: string
+  userId?: string
+  followingId?: string
+  status?: CommunityPostStatus | 'all'
+  page?: number
+  pageSize?: number
+  viewerId?: string
+} = {}): CommunityFeed {
+  const d = getDb()
+  const page = Math.max(1, Number(opts.page) || 1)
+  const pageSize = Math.min(Math.max(1, Number(opts.pageSize) || 12), 50)
+  const viewerId = cleanCommunityText(opts.viewerId, 120)
+  const conds: string[] = []
+  const args: any[] = []
+  const status = opts.status || 'published'
+  if (status !== 'all') {
+    conds.push('p.status = ?')
+    args.push(status)
+  }
+  const topic = cleanCommunityText(opts.topic, 20)
+  if (topic) {
+    conds.push('p.topic = ?')
+    args.push(topic)
+  }
+  const keyword = cleanCommunityText(opts.keyword, 40)
+  if (keyword) {
+    conds.push('(p.title LIKE ? OR p.content LIKE ? OR p.topic LIKE ?)')
+    args.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`)
+  }
+  if (opts.channel === 'knowledge') conds.push('p.knowledge = 1')
+  if (opts.channel === 'follow' && opts.followingId) {
+    const followingId = cleanCommunityText(opts.followingId, 120)
+    conds.push('(p.authorId IN (SELECT followingId FROM CommunityFollow WHERE followerId = ?) OR p.authorId = ?)')
+    args.push(followingId, followingId)
+  }
+  if (opts.channel === 'profile' && opts.userId) {
+    conds.push('p.authorId = ?')
+    args.push(cleanCommunityText(opts.userId, 120))
+  }
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : ''
+  const total = Number((d.prepare(`SELECT COUNT(*) AS n FROM CommunityPost p ${where}`).get(...args) as any)?.n || 0)
+  const orderBy = opts.channel === 'recommend'
+    ? 'p.pinned DESC, p.featured DESC, (p.likeCount + p.commentCount * 2 + p.orderCount * 3) DESC, p.createdAt DESC'
+    : 'p.pinned DESC, p.createdAt DESC'
+  const rows = d.prepare(`${COMMUNITY_POST_SELECT} ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`).all(viewerId, viewerId, viewerId, ...args, pageSize, (page - 1) * pageSize) as any[]
+  const topics = d.prepare(`SELECT topic, COUNT(*) AS count FROM CommunityPost WHERE status = 'published' GROUP BY topic ORDER BY count DESC, topic ASC LIMIT 12`).all() as any[]
+  const stats = d.prepare(`SELECT
+    (SELECT COUNT(*) FROM CommunityPost WHERE status = 'published') AS posts,
+    (SELECT COUNT(*) FROM CommunityComment WHERE status = 'published') AS comments,
+    (SELECT COUNT(*) FROM "Order" WHERE status = 'completed' AND paid = 1) AS completedOrders,
+    (SELECT COUNT(DISTINCT authorId) FROM CommunityPost WHERE status = 'published') AS contributors`).get() as any
+  return {
+    posts: rows.map(communityPostRow),
+    total,
+    page,
+    pageSize,
+    topics: topics.map((row) => ({ topic: row.topic || COMMUNITY_TOPIC_FALLBACK, count: Number(row.count || 0) })),
+    stats: {
+      posts: Number(stats?.posts || 0),
+      comments: Number(stats?.comments || 0),
+      completedOrders: Number(stats?.completedOrders || 0),
+      contributors: Number(stats?.contributors || 0),
+    },
+  }
+}
+
+export function getCommunityPost(id: string, viewerId = '', includeUnpublished = false): CommunityPost | null {
+  const postId = cleanCommunityText(id, 120)
+  if (!postId) return null
+  const d = getDb()
+  const row = d.prepare(`${COMMUNITY_POST_SELECT} WHERE p.id = ?`).get(viewerId, viewerId, viewerId, postId) as any
+  if (!row) return null
+  if (!includeUnpublished && row.status !== 'published') return null
+  if (row.status === 'published') {
+    d.prepare('UPDATE CommunityPost SET viewCount = viewCount + 1 WHERE id = ?').run(postId)
+    row.viewCount = Number(row.viewCount || 0) + 1
+  }
+  return communityPostRow(row)
+}
+
+export function toggleCommunityLike(postId: string, userId: string) {
+  const d = getDb()
+  const post = d.prepare('SELECT id, authorId, status FROM CommunityPost WHERE id = ?').get(postId) as any
+  if (!post || post.status !== 'published') throw new Error('帖子不存在或不可见')
+  const exists = !!d.prepare('SELECT 1 FROM CommunityPostLike WHERE postId = ? AND userId = ?').get(postId, userId)
+  if (exists) {
+    d.prepare('DELETE FROM CommunityPostLike WHERE postId = ? AND userId = ?').run(postId, userId)
+    d.prepare('UPDATE CommunityPost SET likeCount = MAX(0, likeCount - 1), updatedAt = ? WHERE id = ?').run(nowLocal(), postId)
+  } else {
+    d.prepare('INSERT INTO CommunityPostLike (postId, userId, createdAt) VALUES (?,?,?)').run(postId, userId, nowLocal())
+    d.prepare('UPDATE CommunityPost SET likeCount = likeCount + 1, updatedAt = ? WHERE id = ?').run(nowLocal(), postId)
+    if (post.authorId !== userId) {
+      d.prepare('INSERT INTO CommunityNotification (id, userId, actorId, type, postId, content, isRead, createdAt) VALUES (?,?,?,?,?,?,0,?)').run(genId(), post.authorId, userId, 'like', postId, '有人点赞了你的帖子', nowLocal())
+    }
+  }
+  const count = Number((d.prepare('SELECT likeCount FROM CommunityPost WHERE id = ?').get(postId) as any)?.likeCount || 0)
+  return { active: !exists, count }
+}
+
+export function toggleCommunityFavorite(postId: string, userId: string) {
+  const d = getDb()
+  const post = d.prepare('SELECT id, authorId, status FROM CommunityPost WHERE id = ?').get(postId) as any
+  if (!post || post.status !== 'published') throw new Error('帖子不存在或不可见')
+  const exists = !!d.prepare('SELECT 1 FROM CommunityPostFavorite WHERE postId = ? AND userId = ?').get(postId, userId)
+  if (exists) {
+    d.prepare('DELETE FROM CommunityPostFavorite WHERE postId = ? AND userId = ?').run(postId, userId)
+    d.prepare('UPDATE CommunityPost SET favoriteCount = MAX(0, favoriteCount - 1), updatedAt = ? WHERE id = ?').run(nowLocal(), postId)
+  } else {
+    d.prepare('INSERT INTO CommunityPostFavorite (postId, userId, createdAt) VALUES (?,?,?)').run(postId, userId, nowLocal())
+    d.prepare('UPDATE CommunityPost SET favoriteCount = favoriteCount + 1, updatedAt = ? WHERE id = ?').run(nowLocal(), postId)
+    if (post.authorId !== userId) {
+      d.prepare('INSERT INTO CommunityNotification (id, userId, actorId, type, postId, content, isRead, createdAt) VALUES (?,?,?,?,?,?,0,?)').run(genId(), post.authorId, userId, 'favorite', postId, '有人收藏了你的帖子', nowLocal())
+    }
+  }
+  const count = Number((d.prepare('SELECT favoriteCount FROM CommunityPost WHERE id = ?').get(postId) as any)?.favoriteCount || 0)
+  return { active: !exists, count }
+}
+
+export function listCommunityComments(postId: string, includeHidden = false): CommunityComment[] {
+  const d = getDb()
+  const where = includeHidden ? 'c.postId = ?' : "c.postId = ? AND c.status = 'published'"
+  const rows = d.prepare(
+    `SELECT c.*, COALESCE(pr.nickname, 'VOID指挥官') AS authorName, COALESCE(pr.avatarUrl, '') AS authorAvatar
+     FROM CommunityComment c LEFT JOIN CommunityProfile pr ON pr.customerId = c.authorId
+     WHERE ${where} ORDER BY c.createdAt ASC`,
+  ).all(postId) as any[]
+  return rows.map(communityCommentRow)
+}
+
+export function createCommunityComment(postId: string, authorId: string, content: string, parentId = ''): CommunityComment {
+  const clean = cleanCommunityText(content, 500)
+  if (clean.length < 2) throw new Error('评论至少需要 2 个字')
+  const d = getDb()
+  const post = d.prepare('SELECT id, authorId, status FROM CommunityPost WHERE id = ?').get(postId) as any
+  if (!post || post.status !== 'published') throw new Error('帖子不存在或不可见')
+  if (parentId) {
+    const parent = d.prepare('SELECT id FROM CommunityComment WHERE id = ? AND postId = ?').get(parentId, postId) as any
+    if (!parent) throw new Error('回复目标不存在')
+  }
+  getOrCreateCommunityProfile(authorId)
+  const id = genId()
+  const now = nowLocal()
+  d.prepare('INSERT INTO CommunityComment (id, postId, authorId, parentId, content, status, likeCount, createdAt, updatedAt) VALUES (?,?,?,?,?,?,0,?,?)').run(id, postId, authorId, parentId || '', clean, 'published', now, now)
+  d.prepare('UPDATE CommunityPost SET commentCount = (SELECT COUNT(*) FROM CommunityComment WHERE postId = ? AND status = \'published\'), updatedAt = ? WHERE id = ?').run(postId, now, postId)
+  if (post.authorId !== authorId) {
+    d.prepare('INSERT INTO CommunityNotification (id, userId, actorId, type, postId, content, isRead, createdAt) VALUES (?,?,?,?,?,?,0,?)').run(genId(), post.authorId, authorId, 'comment', postId, '有人评论了你的帖子', now)
+  }
+  return communityCommentRow(d.prepare('SELECT * FROM CommunityComment WHERE id = ?').get(id))
+}
+
+export function deleteCommunityComment(id: string, actorId: string): boolean {
+  const d = getDb()
+  const row = d.prepare('SELECT * FROM CommunityComment WHERE id = ?').get(id) as any
+  if (!row) return false
+  if (row.authorId !== actorId) throw new Error('只能删除自己的评论')
+  d.prepare("UPDATE CommunityComment SET status = 'hidden', updatedAt = ? WHERE id = ?").run(nowLocal(), id)
+  d.prepare("UPDATE CommunityPost SET commentCount = (SELECT COUNT(*) FROM CommunityComment WHERE postId = ? AND status = 'published'), updatedAt = ? WHERE id = ?").run(row.postId, nowLocal(), row.postId)
+  return true
+}
+
+export function toggleFollow(followerId: string, followingId: string) {
+  const follower = cleanCommunityText(followerId, 120)
+  const following = cleanCommunityText(followingId, 120)
+  if (!follower || !following) throw new Error('缺少关注对象')
+  if (follower === following) throw new Error('不能关注自己')
+  const d = getDb()
+  getOrCreateCommunityProfile(follower)
+  getOrCreateCommunityProfile(following)
+  const exists = !!d.prepare('SELECT 1 FROM CommunityFollow WHERE followerId = ? AND followingId = ?').get(follower, following)
+  d.exec('BEGIN IMMEDIATE')
+  try {
+    if (exists) {
+      d.prepare('DELETE FROM CommunityFollow WHERE followerId = ? AND followingId = ?').run(follower, following)
+    } else {
+      d.prepare('INSERT INTO CommunityFollow (followerId, followingId, createdAt) VALUES (?,?,?)').run(follower, following, nowLocal())
+      d.prepare(
+        'INSERT INTO CommunityNotification (id, userId, actorId, type, postId, content, isRead, createdAt) VALUES (?,?,?,?,?,?,0,?)',
+      ).run(genId(), following, follower, 'follow', '', '有人关注了你', nowLocal())
+    }
+    d.exec('COMMIT')
+  } catch (error) {
+    d.exec('ROLLBACK')
+    throw error
+  }
+  refreshCommunityProfileStats(follower, d)
+  refreshCommunityProfileStats(following, d)
+  return { following: !exists, followerCount: Number((d.prepare('SELECT followerCount FROM CommunityProfile WHERE customerId = ?').get(following) as any)?.followerCount || 0) }
+}
+
+export function listFollowingIds(followerId: string): string[] {
+  const id = cleanCommunityText(followerId, 120)
+  if (!id) return []
+  return (getDb().prepare('SELECT followingId FROM CommunityFollow WHERE followerId = ? ORDER BY createdAt DESC').all(id) as any[])
+    .map((row) => String(row.followingId || ''))
+    .filter(Boolean)
+}
+
+export function listFollowers(userId: string): CommunityProfile[] {
+  const id = cleanCommunityText(userId, 120)
+  if (!id) return []
+  const rows = getDb().prepare(
+    `SELECT p.* FROM CommunityFollow f JOIN CommunityProfile p ON p.customerId = f.followerId
+     WHERE f.followingId = ? ORDER BY f.createdAt DESC LIMIT 100`,
+  ).all(id) as any[]
+  return rows.map(communityProfileRow)
+}
+
+export function listCommunityNotifications(userId: string, opts: { page?: number; pageSize?: number; unreadOnly?: boolean } = {}) {
+  const id = cleanCommunityText(userId, 120)
+  if (!id) return { items: [] as CommunityNotification[], total: 0, unread: 0, page: 1, pageSize: 20 }
+  const page = Math.max(1, Number(opts.page) || 1)
+  const pageSize = Math.min(Math.max(1, Number(opts.pageSize) || 20), 50)
+  const where = opts.unreadOnly ? 'n.userId = ? AND n.isRead = 0' : 'n.userId = ?'
+  const d = getDb()
+  const total = Number((d.prepare(`SELECT COUNT(*) AS n FROM CommunityNotification n WHERE ${where}`).get(id) as any)?.n || 0)
+  const unread = Number((d.prepare('SELECT COUNT(*) AS n FROM CommunityNotification WHERE userId = ? AND isRead = 0').get(id) as any)?.n || 0)
+  const rows = d.prepare(
+    `SELECT n.*, COALESCE(p.nickname, 'VOID System') AS actorName, COALESCE(p.avatarUrl, '') AS actorAvatar
+     FROM CommunityNotification n LEFT JOIN CommunityProfile p ON p.customerId = n.actorId
+     WHERE ${where} ORDER BY n.createdAt DESC LIMIT ? OFFSET ?`,
+  ).all(id, pageSize, (page - 1) * pageSize) as any[]
+  return { items: rows.map(communityNotificationRow), total, unread, page, pageSize }
+}
+
+export function markCommunityNotificationRead(id: string, userId: string): boolean {
+  const notificationId = cleanCommunityText(id, 120)
+  const ownerId = cleanCommunityText(userId, 120)
+  if (!notificationId || !ownerId) return false
+  const result = getDb().prepare('UPDATE CommunityNotification SET isRead = 1 WHERE id = ? AND userId = ?').run(notificationId, ownerId)
+  return Number(result.changes || 0) > 0
+}
+
+export function markAllCommunityNotificationsRead(userId: string): number {
+  const id = cleanCommunityText(userId, 120)
+  if (!id) return 0
+  const result = getDb().prepare('UPDATE CommunityNotification SET isRead = 1 WHERE userId = ? AND isRead = 0').run(id)
+  return Number(result.changes || 0)
+}
+
+export function listCommunityEvidence(postId: string): CommunityEvidence[] {
+  const id = cleanCommunityText(postId, 120)
+  if (!id) return []
+  const rows = getDb().prepare(
+    `SELECT id, orderNo, companionName, serviceName, unitCount, amountCents, amount, updatedAt, createdAt
+     FROM "Order"
+     WHERE sourcePostId = ? AND status = 'completed' AND paid = 1
+     ORDER BY updatedAt DESC, createdAt DESC LIMIT 50`,
+  ).all(id) as any[]
+  return rows.map(communityEvidenceRow)
+}
+
+export function listCommunityUsers(input: { keyword?: string; page?: number; pageSize?: number } = {}) {
+  return listCommunityProfiles(input)
+}
+
+export function getCommunityProfileView(userId: string, viewerId = '', opts: { page?: number; pageSize?: number } = {}): CommunityProfileView | null {
+  const id = cleanCommunityText(userId, 120)
+  if (!id) return null
+  const profile = getCommunityProfile(id)
+  if (!profile) return null
+  const feed = listCommunityPosts({ channel: 'profile', userId: id, viewerId, page: opts.page, pageSize: opts.pageSize })
+  const isFollowing = viewerId && viewerId !== id
+    ? !!getDb().prepare('SELECT 1 FROM CommunityFollow WHERE followerId = ? AND followingId = ?').get(viewerId, id)
+    : false
+  return { profile, posts: feed.posts, total: feed.total, page: feed.page, pageSize: feed.pageSize, isFollowing }
+}
+
+export function createCommunityNotification(input: { userId: string; actorId?: string; type?: CommunityNotification['type']; postId?: string; content: string }): CommunityNotification {
+  const userId = cleanCommunityText(input.userId, 120)
+  if (!userId) throw new Error('缺少通知接收人')
+  const id = genId()
+  const now = nowLocal()
+  getDb().prepare(
+    'INSERT INTO CommunityNotification (id, userId, actorId, type, postId, content, isRead, createdAt) VALUES (?,?,?,?,?,?,0,?)',
+  ).run(id, userId, cleanCommunityText(input.actorId, 120), input.type || 'system', cleanCommunityText(input.postId, 120), cleanCommunityText(input.content, 160), now)
+  return communityNotificationRow(getDb().prepare('SELECT * FROM CommunityNotification WHERE id = ?').get(id))
 }

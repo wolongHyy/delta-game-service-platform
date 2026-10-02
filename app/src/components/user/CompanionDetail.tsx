@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { Companion, ServiceType } from '@/lib/types'
 import { apiCached } from '@/lib/client'
-import { Avatar, Btn, Card, IconBack, Money, Tag, cn } from '@/components/ui'
+import { ActionDock, Avatar, Btn, HudPanel, IconArrowUpRight, IconBack, Money, Skeleton, Tag, cn } from '@/components/ui'
 
 export type PlayMode = '单陪' | '双陪'
 export type AddonKey = '教学单' | '甜蜜单'
@@ -34,32 +34,24 @@ export default function CompanionDetail({
   const [error, setError] = useState('')
 
   useEffect(() => {
-    apiCached<Companion>(`/api/companions/${companionId}`, 30_000)
-      .then(setCompanion)
-      .catch((e) => setError(e.message))
-    apiCached<ServiceType[]>('/api/service-types', 60_000)
-      .then(setTypes)
-      .catch(() => setTypes([]))
+    apiCached<Companion>(`/api/companions/${companionId}`, 30_000).then(setCompanion).catch((e) => setError(e.message))
+    apiCached<ServiceType[]>('/api/service-types', 60_000).then(setTypes).catch(() => setTypes([]))
   }, [companionId])
 
   if (error) {
     return (
-      <div className="p-4">
-        <button type="button" onClick={onBack} className="mb-4 flex items-center gap-1 text-sm text-ink-dim">
-          <IconBack size={18} /> 返回
-        </button>
-        <Card className="p-6 text-center text-sm text-danger">{error}</Card>
+      <div className="min-h-screen p-4">
+        <BackButton onBack={onBack} />
+        <HudPanel><p className="p-6 text-center text-sm text-danger">{error}</p></HudPanel>
       </div>
     )
   }
 
   if (!companion) {
     return (
-      <div className="p-4">
-        <button type="button" onClick={onBack} className="mb-4 flex items-center gap-1 text-sm text-ink-dim">
-          <IconBack size={18} /> 返回
-        </button>
-        <Card className="p-6 text-center text-sm text-ink-faint">加载中…</Card>
+      <div className="min-h-screen p-4">
+        <BackButton onBack={onBack} />
+        <div className="space-y-3"><Skeleton className="h-48" /><Skeleton className="h-32" /><Skeleton className="h-32" /></div>
       </div>
     )
   }
@@ -71,183 +63,185 @@ export default function CompanionDetail({
   const effectivePrice = modePrice + addons.length * ADDON_PRICE
   const spec = isHourly ? [mode, ...addons].join(' · ') : ''
   const total = effectivePrice * unitCount
+  const online = companion.status === 1
+  const unitLabel = isFixedUnit ? '1 单' : `${unitCount} 小时`
 
   function toggleAddon(key: AddonKey) {
     setAddons((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
   }
 
   return (
-    <div className="pb-24">
-      <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur">
-        <button type="button" onClick={onBack} className="rounded-full p-1 text-ink-dim hover:text-ink">
-          <IconBack size={20} />
-        </button>
-        <h1 className="text-base font-semibold text-ink">服务详情</h1>
+    <div className="void-shell min-h-screen pb-32">
+      <header className="sticky top-0 z-30 border-b border-line/80 bg-bg/88 backdrop-blur-2xl">
+        <div className="mx-auto flex min-h-16 max-w-[1180px] items-center gap-2 px-4 lg:px-8">
+          <button type="button" onClick={onBack} className="press-command flex h-11 w-11 items-center justify-center border border-transparent text-ink-dim hover:border-line hover:bg-surface hover:text-ink" aria-label="返回">
+            <IconBack size={20} />
+          </button>
+          <div>
+            <p className="font-data text-[9px] tracking-[0.2em] text-primary">OPERATOR DOSSIER / 01</p>
+            <h1 className="mt-0.5 text-sm font-semibold text-ink">服务详情</h1>
+          </div>
+          <span className="ml-auto hidden font-data text-[9px] tracking-[0.14em] text-ink-faint sm:block">ID / {companion.id.slice(-8).toUpperCase()}</span>
+        </div>
       </header>
 
-      <div className="space-y-3 p-4">
-        <Card className="flex items-center gap-4 p-4">
-          <Avatar name={companion.name} size={72} />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-ink">{companion.name}</span>
-              {companion.gender && <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] text-primary">{companion.gender}</span>}
+      <main className="mx-auto max-w-[1180px] px-4 pt-5 lg:px-8 lg:pt-7">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)] lg:items-start">
+          <section className="space-y-3">
+            <div className="hero-command panel-corner relative overflow-hidden border border-line p-5 lg:p-6">
+              <div className="hud-grid pointer-events-none absolute inset-0 opacity-45" />
+              <div className="relative">
+                <div className="flex items-start gap-4">
+                  <Avatar name={companion.name} size={84} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-2xl font-semibold tracking-[-0.04em] text-ink">{companion.name}</span>
+                      <span className={cn('inline-flex items-center gap-1.5 border px-2 py-1 font-data text-[9px] tracking-[0.1em]', online ? 'border-ok/35 bg-ok/10 text-ok' : 'border-line text-ink-faint')}>
+                        <span className={cn('h-1.5 w-1.5 rounded-full', online ? 'bg-ok shadow-[0_0_10px_rgb(var(--ok-rgb))]' : 'bg-ink-faint')} />
+                        {online ? 'ONLINE' : 'OFFLINE'}
+                      </span>
+                    </div>
+                    <p className="mt-2 font-data text-[10px] tracking-[0.14em] text-ink-faint">{serviceName.toUpperCase()} / {companion.rank || 'UNRANKED'}</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      <Tag className="border-info/35 text-info">{serviceName}</Tag>
+                      {companion.rank && <Tag>{companion.rank}</Tag>}
+                      {companion.gender && <Tag>{companion.gender}</Tag>}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-7 flex items-end justify-between gap-4 border-t border-line pt-4">
+                  <div>
+                    <p className="font-data text-[9px] tracking-[0.16em] text-ink-faint">BASE RATE / {companion.unit}</p>
+                    <p className="mt-1 font-data text-3xl font-semibold leading-none text-gold">
+                      <Money value={effectivePrice} />
+                      {isHourly && mode === '双陪' ? <span className="ml-2 font-data text-[10px] text-ink-faint">DUO</span> : null}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-data text-[9px] tracking-[0.16em] text-ink-faint">VERIFIED COMPLETED</p>
+                    <p className="mt-1 text-sm font-semibold text-ink">{companion.sales} 单</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="mt-1.5 flex items-center gap-2">
-              <Tag className="border-primary/40 text-primary">{serviceName}</Tag>
-              {companion.rank && <Tag>{companion.rank}</Tag>}
-            </div>
-            <p className="mt-2 text-xl font-bold text-primary">
-              <Money value={effectivePrice} />
-              <span className="ml-1 text-xs font-normal text-ink-faint">
-                /{companion.unit}
-                {isHourly && mode === '双陪' ? '（双陪）' : ''}
-              </span>
-            </p>
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <h2 className="mb-2 text-sm font-semibold text-ink">标签</h2>
-          <div className="flex flex-wrap gap-1.5">
-            {companion.tags.length === 0 ? (
-              <span className="text-xs text-ink-faint">暂无标签</span>
-            ) : (
-              companion.tags.map((t) => <Tag key={t}>{t}</Tag>)
-            )}
-          </div>
-          <h2 className="mb-1 mt-4 text-sm font-semibold text-ink">服务介绍</h2>
-          <p className="text-xs leading-5 text-ink-dim">{companion.description || '占位介绍，等待补充。'}</p>
-        </Card>
+            <HudPanel title="任务简报" meta="SERVICE BRIEF">
+              <div className="p-4 lg:p-5">
+                {companion.tags.length > 0 && <div className="mb-4 flex flex-wrap gap-1.5">{companion.tags.map((t) => <Tag key={t}>#{t}</Tag>)}</div>}
+                <p className="max-w-2xl text-sm leading-6 text-ink-dim">{companion.description || '服务介绍待补充。下单前可在备注中说明具体需求。'}</p>
+                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-3">
+                  <div><p className="font-data text-[9px] text-ink-faint">RESPONSE</p><p className="mt-1 font-data text-sm text-ok">24H / ONLINE</p></div>
+                  <div><p className="font-data text-[9px] text-ink-faint">CERTIFICATION</p><p className="mt-1 font-data text-sm text-primary">VOID VERIFIED</p></div>
+                </div>
+              </div>
+            </HudPanel>
+          </section>
 
-        {isHourly && (
-          <>
-            <Card className="p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-ink">陪玩模式</h2>
-                <span className="text-xs text-ink-faint">双陪按单价 ×2</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {(['单陪', '双陪'] as PlayMode[]).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m)}
-                    className={cn(
-                      'rounded-btn border px-3 py-2.5 text-sm transition-colors',
-                      mode === m
-                        ? 'border-primary bg-primary/15 text-primary shadow-glow'
-                        : 'border-line bg-surface2 text-ink-dim hover:text-ink',
-                    )}
-                  >
-                    <span className="block font-medium">{m}</span>
-                    <span className="mt-0.5 block text-[11px] opacity-80">
-                      <Money value={companion.price * (m === '双陪' ? 2 : 1)} />
-                      /小时
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-ink">加购服务</h2>
-                <span className="text-xs text-ink-faint">每项 +20 元/小时</span>
-              </div>
-              <div className="space-y-2">
-                {(
-                  [
-                    { key: '教学单' as AddonKey, desc: '陪玩同时教学打法' },
-                    { key: '甜蜜单' as AddonKey, desc: '甜蜜语音陪伴' },
-                  ] as const
-                ).map((a) => (
-                  <button
-                    key={a.key}
-                    type="button"
-                    onClick={() => toggleAddon(a.key)}
-                    className={cn(
-                      'flex w-full items-center justify-between rounded-btn border px-3 py-2.5 text-left text-sm transition-colors',
-                      addons.includes(a.key)
-                        ? 'border-primary bg-primary/10 text-ink'
-                        : 'border-line bg-surface2 text-ink-dim hover:text-ink',
-                    )}
-                  >
-                    <span>
-                      {a.key}
-                      <span className="ml-1.5 text-[11px] text-ink-faint">{a.desc}</span>
-                    </span>
-                    <span
+          <aside className="space-y-3">
+            {isHourly && (
+              <HudPanel title="陪玩模式" meta="SQUAD CONFIGURATION">
+                <div className="grid grid-cols-2 gap-2 p-4">
+                  {(['单陪', '双陪'] as PlayMode[]).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMode(m)}
                       className={cn(
-                        'flex h-5 w-5 items-center justify-center rounded-full border text-xs',
-                        addons.includes(a.key) ? 'border-primary bg-primary text-white' : 'border-line text-transparent',
+                        'press-command min-h-[76px] border p-3 text-left transition-command',
+                        mode === m ? 'border-primary/60 bg-primary/10 text-primary' : 'border-line bg-surface2/60 text-ink-dim hover:border-lineStrong hover:text-ink',
                       )}
                     >
-                      ✓
-                    </span>
-                  </button>
-                ))}
+                      <span className="block text-sm font-semibold">{m}</span>
+                      <span className="mt-1 block font-data text-[10px]">
+                        <Money value={companion.price * (m === '双陪' ? 2 : 1)} /> / 小时
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </HudPanel>
+            )}
+
+            {isHourly && (
+              <HudPanel title="战术加购" meta="OPTIONAL MODULES">
+                <div className="space-y-2 p-4">
+                  {([
+                    { key: '教学单' as AddonKey, desc: '同步讲解走位与资源决策' },
+                    { key: '甜蜜单' as AddonKey, desc: '轻松语音陪伴与气氛组' },
+                  ] as const).map((a) => (
+                    <button
+                      key={a.key}
+                      type="button"
+                      onClick={() => toggleAddon(a.key)}
+                      className={cn(
+                        'press-command flex min-h-touch w-full items-center justify-between gap-3 border px-3 py-2.5 text-left text-sm transition-command',
+                        addons.includes(a.key) ? 'border-primary/50 bg-primary/10 text-ink' : 'border-line bg-surface2/60 text-ink-dim hover:border-lineStrong hover:text-ink',
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="font-medium">{a.key}</span>
+                        <span className="ml-2 text-[11px] text-ink-faint">{a.desc}</span>
+                      </span>
+                      <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center border font-data text-[10px]', addons.includes(a.key) ? 'border-primary bg-primary text-onPrimary' : 'border-line text-transparent')}>✓</span>
+                    </button>
+                  ))}
+                </div>
+              </HudPanel>
+            )}
+
+            <HudPanel title={isFixedUnit ? '购买数量' : '服务时长'} meta={isFixedUnit ? 'FIXED ONE RUN' : `UNIT / ${companion.unit}`}>
+              {isFixedUnit ? (
+                <p className="p-4 text-sm text-ink-dim">该服务按固定 1 单结算。</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 p-4">
+                  {[1, 2, 3, 4, 6, 8].map((u) => (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => setUnitCount(u)}
+                      className={cn(
+                        'press-command min-h-touch border px-2 font-data text-sm transition-command',
+                        unitCount === u ? 'border-primary/60 bg-primary/10 text-primary' : 'border-line bg-surface2/60 text-ink-dim hover:border-lineStrong hover:text-ink',
+                      )}
+                    >
+                      {u}H
+                    </button>
+                  ))}
+                </div>
+              )}
+            </HudPanel>
+
+            <div className="border border-line bg-surface/55 p-4">
+              <div className="flex items-center justify-between">
+                <p className="font-data text-[9px] tracking-[0.16em] text-ink-faint">ORDER SUMMARY</p>
+                <IconArrowUpRight size={15} className="text-primary" />
               </div>
-            </Card>
-          </>
-        )}
-
-        {isFixedUnit ? (
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">购买数量</h2>
-              <span className="text-xs text-ink-faint">固定 1 单</span>
+              <div className="mt-4 space-y-3 text-xs">
+                <div className="flex justify-between gap-3"><span className="text-ink-faint">服务规格</span><span className="text-right text-ink">{spec || '固定服务'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-ink-faint">时长 / 局数</span><span className="text-right text-ink">{unitLabel}</span></div>
+                <div className="flex justify-between gap-3 border-t border-line pt-3"><span className="text-ink-faint">预计总额</span><span className="font-data text-lg font-semibold text-gold"><Money value={total} /></span></div>
+              </div>
             </div>
-          </Card>
-        ) : (
-          <Card className="p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">选择时长</h2>
-              <span className="text-xs text-ink-faint">单位：{companion.unit}</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {[1, 2, 3, 4, 6, 8].map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => setUnitCount(u)}
-                  className={cn(
-                    'min-w-14 rounded-btn border px-3 py-2 text-sm transition-colors',
-                    unitCount === u
-                      ? 'border-primary bg-primary/15 text-primary shadow-glow'
-                      : 'border-line bg-surface2 text-ink-dim hover:text-ink',
-                  )}
-                >
-                  {u} 小时
-                </button>
-              ))}
-            </div>
-          </Card>
-        )}
-      </div>
-
-      <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
-          <div>
-            <p className="text-[11px] text-ink-faint">合计</p>
-            <p className="text-lg font-bold text-primary">
-              <Money value={total} />
-            </p>
-          </div>
-          <Btn
-            onClick={() =>
-              onCheckout(companion, unitCount, {
-                mode: isHourly ? mode : undefined,
-                addons,
-                effectivePrice,
-                spec,
-              })
-            }
-          >
-            立即下单
-          </Btn>
+          </aside>
         </div>
-      </div>
+      </main>
+
+      <ActionDock>
+        <div className="min-w-0">
+          <p className="font-data text-[10px] tracking-[0.12em] text-ink-faint">TOTAL COST / {spec || 'STANDARD'}</p>
+          <p className="mt-0.5 font-data text-xl font-semibold text-gold"><Money value={total} /></p>
+        </div>
+        <Btn disabled={!online} onClick={() => onCheckout(companion, unitCount, { mode: isHourly ? mode : undefined, addons, effectivePrice, spec })}>
+          {online ? '立即下单' : '暂不可下单'}
+        </Btn>
+      </ActionDock>
     </div>
+  )
+}
+
+function BackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <button type="button" onClick={onBack} className="mb-4 flex min-h-touch items-center gap-1 text-sm text-ink-dim hover:text-ink">
+      <IconBack size={18} /> 返回
+    </button>
   )
 }

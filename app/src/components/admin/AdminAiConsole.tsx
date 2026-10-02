@@ -1,8 +1,9 @@
-﻿"use client"
+"use client"
 
 import { useCallback, useEffect, useState } from "react"
 import type { AiChatMessage, AiConversation, AiKnowledgeChunk } from "@/lib/types"
 import { Btn, Card, Empty, Field, Select, Tag, TextArea, TextInput } from "@/components/ui"
+import { AdminCode, AdminPageHeader } from "@/components/admin/AdminUI"
 
 type TabKey = "conversations" | "knowledge" | "settings"
 
@@ -32,19 +33,22 @@ export default function AdminAiConsole() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-bold text-ink">智能客服</h1>
-        <p className="mt-0.5 text-xs text-ink-faint">24小时 AI 客服：RAG 知识库 + 人格化回复，可管理对话、知识库与模型设置</p>
-      </div>
-      <div className="flex gap-2">
+      <AdminPageHeader
+        eyebrow="AI SERVICE DESK / KNOWLEDGE ROUTING"
+        title="智能客服"
+        description="24 小时 AI 客服：RAG 知识库增强 + 人格化回复。可管理会话记录、知识切片与模型参数。"
+        meta={<><span>知识优先</span><span>会话可追溯</span><span>敏感问题转人工</span></>}
+        actions={<AdminCode tone="primary">AI DESK ONLINE</AdminCode>}
+      />
+      <div className="command-panel flex flex-wrap gap-1.5 p-2">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
             className={
-              "rounded-full px-4 py-1.5 text-sm transition-colors " +
-              (tab === t.key ? "bg-primary text-white" : "bg-surface text-ink-dim hover:text-ink")
+              "press-command min-h-touch border px-4 text-sm transition-command " +
+              (tab === t.key ? "border-primary/35 bg-primary/[0.08] text-primary" : "border-line bg-surface text-ink-dim hover:text-ink")
             }
           >
             {t.label}

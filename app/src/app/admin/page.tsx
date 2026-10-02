@@ -11,7 +11,7 @@ const STATUS_ROWS = [
   { key: 'assigned', label: '待服务', tone: 'bg-primary' },
   { key: 'in_progress', label: '服务中', tone: 'bg-ok' },
   { key: 'completion_pending', label: '待确认', tone: 'bg-amber-500' },
-  { key: 'completed', label: '已完成', tone: 'bg-emerald-600' },
+  { key: 'completed', label: '已完成', tone: 'bg-ok' },
   { key: 'cancelled', label: '已取消', tone: 'bg-ink-faint' },
 ]
 
@@ -82,28 +82,36 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-lg font-bold text-ink">管理仪表盘</h1>
-          <p className="mt-0.5 text-xs text-ink-faint">
-            {overview ? `每 15 秒同步 · 更新于 ${overview.generatedAt}` : '数据同步中'}
-          </p>
+      <section className="command-panel overflow-hidden">
+        <div className="hud-grid absolute inset-0 opacity-30" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4 p-5 lg:p-6">
+          <div>
+            <p className="font-data text-[9px] tracking-[0.18em] text-primary">COMMAND OVERVIEW / LIVE OPERATIONS</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-ink">管理仪表盘</h1>
+            <p className="mt-2 max-w-2xl text-xs leading-5 text-ink-dim">订单、营收、服务状态与待处理队列的实时总览。数据每 15 秒自动同步一次。</p>
+            <div className="mt-4 flex flex-wrap items-center gap-4 font-data text-[9px] tracking-[0.12em] text-ink-faint">
+              <span className="flex items-center gap-1.5 text-ok"><span className="h-1.5 w-1.5 rounded-full bg-ok" /> DATA LINK ONLINE</span>
+              <span>{overview ? `UPDATED ${overview.generatedAt}` : 'SYNCING'}</span>
+            </div>
+          </div>
+          <Link href="/admin/stats" className="press-command min-h-touch border border-primary/35 bg-primary/[0.06] px-4 text-xs font-medium text-primary hover:bg-primary/10">
+            进入数据分析工作台 -&gt;
+          </Link>
         </div>
-        <Link href="/admin/stats" className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-dim transition-colors hover:text-ink">
-          进入数据分析工作台
-        </Link>
-      </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {cards.map((card) => (
+        {cards.map((card, index) => (
           <Link
             key={card.label}
             href={card.href}
-            className="group block rounded-card border border-line bg-surface p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow"
+            className="command-panel command-panel-interactive group relative block min-h-[126px] p-4"
           >
-            <p className="text-xs text-ink-faint">{card.label}</p>
-            <p className="mt-1.5 text-xl font-bold text-primary-bright">{card.value}</p>
-            <p className="mt-2 text-[11px] text-ink-faint">{card.note}</p>
+            <span className="absolute right-3 top-3 font-data text-[8px] tracking-[0.12em] text-ink-faint">K{String(index + 1).padStart(2, '0')}</span>
+            <p className="text-[11px] text-ink-faint">{card.label}</p>
+            <p className="mt-3 font-data text-2xl font-semibold leading-none tabular text-ink group-hover:text-primary">{card.value}</p>
+            <p className="mt-3 text-[10px] leading-4 text-ink-faint">{card.note}</p>
+            <span className="absolute bottom-0 left-0 h-px w-12 bg-primary/70" />
           </Link>
         ))}
       </div>
@@ -201,7 +209,7 @@ export default function AdminDashboard() {
                     <p className="truncate text-sm text-ink">{order.companionName} <span className="text-xs text-ink-faint">{order.serviceName}</span></p>
                   </div>
                   <StatusBadge status={order.status} />
-                  <span className="text-sm font-bold text-primary-bright"><Money value={order.amount} /></span>
+                  <span className="font-data text-sm font-bold text-gold"><Money value={order.amount} /></span>
                 </Link>
               ))}
             </div>
