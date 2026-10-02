@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
+import fs from 'node:fs'
 import path from 'node:path'
 import { randomBytes } from 'node:crypto'
 import type {
@@ -36,6 +37,12 @@ let lastExpiredCancelCheckAt = 0
 export function getDb(): DatabaseSync {
   if (!db) {
     const file = process.env.DB_PATH || path.join(process.cwd(), 'db', 'custom.db')
+    // 首次部署时 db 目录不存在，DatabaseSync 不会自动建目录，需先补齐
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+    } catch {
+      // 目录已存在或路径为内存库时忽略
+    }
     db = new DatabaseSync(file)
     db.exec(`
       PRAGMA journal_mode = WAL;

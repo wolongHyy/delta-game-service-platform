@@ -1,6 +1,6 @@
 ## 一键启动（按平台选一条）
 
-- **Windows** — 双击 `start.bat`，浏览器打开 <http://localhost:3000>（便携版自带 `node\node.exe`，无需装 Node）。
+- **Windows** — 双击 `start.bat`，浏览器打开 <http://localhost:3000>。首次运行会自动安装依赖并编译（约 2-5 分钟，需要联网），完成后按提示访问即可；便携包自带 `node\node.exe`，无需另装 Node。
 - **macOS**   — 双击 `start.command`（脚本会自动 `chmod +x`，并在 Terminal 窗口里看日志）。首次运行需要先装 Node.js 22+（`brew install node@22`），首次启动会自动 `npm install` 并编译。
 - **Linux**   — 在终端执行 `./start.sh` 或 `bash start.sh`（需要 Node.js 22+，`/usr/bin/node` 或 `node/bin/node`）。
 
@@ -83,12 +83,17 @@
 start.bat
 ```
 
-首次使用前，在 `app/` 目录初始化演示数据与客服知识库：
+首次运行会自动完成：生成 `app/.env`（若缺失）→ 安装依赖 → 编译前端 → 启动服务，全程无需手动敲命令。
+若启动过程中提示错误，窗口会保留并提示截图反馈，不会一闪而过。
+
+需要演示数据或客服知识库时，再在 `app/` 目录执行（可选，仅开发/演示用）：
 
 ```bat
 ..\node\node.exe --experimental-sqlite scripts/seed.cjs
 ..\node\node.exe --experimental-sqlite scripts/seed-knowledge.cjs
 ```
+
+> 注意：`npm run seed` 会写入演示数据，正式环境请勿执行，以免覆盖真实数据。
 
 ### 方式二：npm 开发模式（在 app/ 目录）
 

@@ -26,6 +26,19 @@ if (fs.existsSync(envFile)) {
   }
 }
 
+// 首次部署时数据库目录不存在，SQLite 不会自动建目录，会导致启动后维护任务报错
+const dbFile = process.env.DB_PATH || path.join(dir, 'db', 'custom.db')
+try {
+  fs.mkdirSync(path.dirname(dbFile), { recursive: true })
+} catch (error) {
+  console.warn('create database directory failed:', error.message)
+}
+try {
+  fs.mkdirSync(process.env.UPLOAD_DIR || path.join(dir, 'uploads'), { recursive: true })
+} catch {
+  // 上传目录由 uploads.ts 兜底创建
+}
+
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || '0.0.0.0'
 
