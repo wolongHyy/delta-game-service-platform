@@ -20,23 +20,48 @@
   ],
   "window": {
     "navigationBarTitleText": "VOID 三角洲游戏服务平台",
-    "navigationBarBackgroundColor": "#05080B",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#05080B",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#EDF3FC",
     "backgroundTextStyle": "dark",
     "enablePullDownRefresh": false
   },
   "tabBar": {
-    "color": "#6B777D",
-    "selectedColor": "#B8FF3D",
-    "backgroundColor": "#0B1117",
-    "borderStyle": "black",
+    "color": "#94A3B8",
+    "selectedColor": "#1E6FEB",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/home/home", "text": "首页" },
-      { "pagePath": "pages/services/services", "text": "服务" },
-      { "pagePath": "pages/community/community", "text": "社区" },
-      { "pagePath": "pages/messages/messages", "text": "消息" },
-      { "pagePath": "pages/profile/profile", "text": "我的" }
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "images/tab/home.png",
+        "selectedIconPath": "images/tab/home-on.png"
+      },
+      {
+        "pagePath": "pages/services/services",
+        "text": "服务",
+        "iconPath": "images/tab/services.png",
+        "selectedIconPath": "images/tab/services-on.png"
+      },
+      {
+        "pagePath": "pages/community/community",
+        "text": "社区",
+        "iconPath": "images/tab/community.png",
+        "selectedIconPath": "images/tab/community-on.png"
+      },
+      {
+        "pagePath": "pages/messages/messages",
+        "text": "消息",
+        "iconPath": "images/tab/messages.png",
+        "selectedIconPath": "images/tab/messages-on.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "images/tab/profile.png",
+        "selectedIconPath": "images/tab/profile-on.png"
+      }
     ]
   },
   "style": "v2",

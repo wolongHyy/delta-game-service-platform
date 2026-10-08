@@ -1,1 +1,2 @@
-.message-card { padding: 24rpx; }
+.message-card { padding: 24rpx; transition: transform 140ms ease, box-shadow 160ms ease; }
+.message-card:active { transform: scale(.986); box-shadow: var(--void-shadow-lg); }

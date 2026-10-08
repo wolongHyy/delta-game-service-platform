@@ -1,8 +1,8 @@
 .ai-page { display: flex; flex-direction: column; height: calc(100vh - 0rpx); padding-bottom: 20rpx; }
 .chat-scroll { flex: 1; min-height: 0; }
-.bubble { max-width: 88%; padding: 22rpx; border: 1rpx solid var(--void-border); border-radius: 18rpx; }
+.bubble { max-width: 88%; padding: 22rpx; border: 1rpx solid var(--void-border); border-radius: 18rpx; box-shadow: var(--void-shadow); }
 .bubble.assistant { align-self: flex-start; background: var(--void-surface); }
-.bubble.user { align-self: flex-end; border-color: rgba(184,255,61,.35); background: rgba(184,255,61,.08); }
+.bubble.user { align-self: flex-end; border-color: rgba(30, 111, 235, .35); background: linear-gradient(135deg, var(--void-blue-50), #FFFFFF); }
 .bubble-text { display: block; margin-top: 8rpx; line-height: 1.65; }
 .quick-row { display: flex; gap: 10rpx; overflow-x: auto; white-space: nowrap; padding: 12rpx 0; }
 .chat-input { display: flex; gap: 12rpx; padding-top: 10rpx; border-top: 1rpx solid var(--void-border); }

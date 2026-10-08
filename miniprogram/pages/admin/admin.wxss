@@ -2,4 +2,5 @@
 .stat { padding: 20rpx; }
 .stat .mono { display: block; font-size: 38rpx; font-weight: 700; }
 .stat .faint { display: block; margin-top: 4rpx; font-size: 21rpx; }
-.order-card { padding: 22rpx; }
+.order-card { padding: 22rpx; transition: transform 140ms ease, box-shadow 160ms ease; }
+.order-card:active { transform: scale(.986); box-shadow: var(--void-shadow-lg); }

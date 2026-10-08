@@ -19,7 +19,7 @@
     <view class="hud companion-row" wx:for="{{companions}}" wx:key="id" data-id="{{item.id}}" bindtap="openCompanion">
       <view class="between"><view><text class="section-title">{{item.name}}</text><text class="faint mono" style="display:block">CODE / {{item.codeText}}</text></view><text class="price">¥{{item.priceText}}<small>/{{item.unit}}</small></text></view>
       <text class="muted clamp-2 mt-12">{{item.description}}</text>
-      <view class="row wrap gap-8 mt-16"><text class="chip" wx:for="{{item.tags}}" wx:key="*this">{{item}}</text><text class="chip">{{item.rank || '标准档'}}</text></view>
+      <view class="row wrap gap-8 mt-16"><text class="chip" wx:for="{{item.tags}}" wx:key="*this">{{item}}</text></view>
       <view class="between mt-16"><text class="faint mono">SALES {{item.sales || 0}} · RATE {{item.rating || '--'}}</text><text class="lime">下单 →</text></view>
     </view>
   </view>

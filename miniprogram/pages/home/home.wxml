@@ -37,7 +37,7 @@
         <view class="grow">
           <view class="between"><text class="section-title">{{item.name}}</text><text class="price">¥{{item.priceText}}<small>/{{item.unit}}</small></text></view>
           <text class="muted clamp-2 mt-8">{{item.description}}</text>
-          <view class="row wrap gap-8 mt-12"><text class="chip" wx:for="{{item.tags}}" wx:key="*this">{{item}}</text><text class="chip">{{item.rank || '标准档'}}</text></view>
+          <view class="row wrap gap-8 mt-12"><text class="chip" wx:for="{{item.tags}}" wx:key="*this">{{item}}</text></view>
         </view>
       </view>
     </view>

@@ -54,4 +54,5 @@ miniprogram/cloudfunctions/**/*.zip
 
 # 微信开发者工具产生的预览二维码 / 上传信息（临时文件）
 miniprogram/preview*.png
+miniprogram/preview-info*.json
 miniprogram/upload-info*.json

@@ -1,4 +1,5 @@
 .stepper { display: flex; align-items: center; gap: 16rpx; }
-.step-btn { width: 80rpx; height: 80rpx; padding: 0; border: 1rpx solid var(--void-border); border-radius: 10rpx; background: var(--void-raised); color: var(--void-text); font-size: 38rpx; line-height: 1; }
+.step-btn { width: 80rpx; height: 80rpx; padding: 0; border: 1rpx solid var(--void-border); border-radius: 12rpx; background: var(--void-surface); color: var(--void-lime); font-size: 38rpx; line-height: 1; box-shadow: var(--void-shadow); transition: transform 120ms ease, background 140ms ease; }
 .step-btn::after { border: 0; }
+.step-btn:active { transform: scale(.94); background: var(--void-blue-50); }
 .step-value { min-width: 96rpx; text-align: center; font-size: 34rpx; }

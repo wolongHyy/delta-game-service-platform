@@ -1,3 +1,4 @@
 .filter-scroll { width: 100%; white-space: nowrap; }
 .filter-row { display: inline-flex; gap: 12rpx; padding-bottom: 6rpx; }
-.companion-row { padding: 24rpx; }
+.companion-row { padding: 24rpx; transition: transform 140ms ease, box-shadow 160ms ease; }
+.companion-row:active { transform: scale(.986); box-shadow: var(--void-shadow-lg); }

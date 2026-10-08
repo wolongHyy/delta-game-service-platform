@@ -3,5 +3,5 @@
 .login-hero .title { display: block; font-size: 58rpx; }
 .avatar-btn { width: 112rpx; height: 112rpx; padding: 0; margin: 0; border: 0; background: transparent; line-height: 1; }
 .avatar-btn::after { border: 0; }
-.avatar-placeholder { width: 112rpx; height: 112rpx; display: flex; align-items: center; justify-content: center; border: 1rpx dashed var(--void-border-strong); border-radius: 22rpx; background: var(--void-raised); color: var(--void-lime); font-size: 48rpx; }
+.avatar-placeholder { width: 112rpx; height: 112rpx; display: flex; align-items: center; justify-content: center; border: 1rpx dashed var(--void-border-strong); border-radius: 22rpx; background: var(--void-blue-50); color: var(--void-lime); font-size: 48rpx; }
 .login-foot { display: flex; flex-direction: column; align-items: center; gap: 6rpx; margin-top: 48rpx; }

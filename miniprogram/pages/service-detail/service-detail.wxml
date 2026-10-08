@@ -5,7 +5,7 @@
       <text class="eyebrow">SERVICE / {{item.kind === 'fighter' ? 'OPERATOR' : 'LOADOUT'}}</text>
       <view class="between mt-16"><view><text class="title sm">{{item.name}}</text><text class="muted" style="display:block">{{item.serviceTypeId || ''}}</text></view><text class="status lime"><text>●</text><text>可下单</text></text></view>
       <text class="muted mt-16" style="display:block">{{item.description}}</text>
-      <view class="row wrap gap-8 mt-16"><text class="chip" wx:for="{{item.tags}}" wx:key="*this">{{item}}</text><text class="chip">{{item.rank || '标准档'}}</text></view>
+      <view class="row wrap gap-8 mt-16"><text class="chip" wx:for="{{item.tags}}" wx:key="*this">{{item}}</text></view>
     </view>
     <view class="hud quiet mt-24">
       <text class="eyebrow blue">SERVICE BRIEF</text>

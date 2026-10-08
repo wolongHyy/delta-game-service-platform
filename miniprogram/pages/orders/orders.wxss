@@ -1,3 +1,4 @@
 .filter-scroll { width: 100%; white-space: nowrap; }
 .filter-row { display: inline-flex; gap: 12rpx; }
-.order-card { padding: 24rpx; }
+.order-card { padding: 24rpx; transition: transform 140ms ease, box-shadow 160ms ease; }
+.order-card:active { transform: scale(.986); box-shadow: var(--void-shadow-lg); }

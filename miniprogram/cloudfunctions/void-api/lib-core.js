@@ -146,6 +146,8 @@ async function queryAll (collection, where, options) {
   if (where) ref = ref.where(where)
   if (opt.orderBy) ref = ref.orderBy(opt.orderBy.field, opt.orderBy.type || 'desc')
   const size = Math.max(1, Math.min(Number(opt.limit || 50), 100))
+  const skip = Math.max(0, Number(opt.skip || 0))
+  if (skip > 0) ref = ref.skip(skip)
   try {
     const res = await ref.limit(size).get()
     return res.data || []

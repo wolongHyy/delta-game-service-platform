@@ -1,4 +1,5 @@
 .channel-bar { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.post-card { padding: 22rpx; }
-.post-avatar { display: flex; align-items: center; justify-content: center; color: var(--void-lime); font-family: "Cascadia Mono", monospace; }
+.post-card { padding: 22rpx; transition: transform 140ms ease, box-shadow 160ms ease; }
+.post-card:active { transform: scale(.984); box-shadow: var(--void-shadow-lg); }
+.post-avatar { display: flex; align-items: center; justify-content: center; border-color: var(--void-blue-200); background: var(--void-blue-50); color: var(--void-lime); font-family: "Cascadia Mono", monospace; font-weight: 700; }
 .post-title { display: block; font-size: 32rpx; font-weight: 700; }

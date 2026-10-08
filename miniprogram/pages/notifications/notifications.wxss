@@ -1,1 +1,1 @@
-.notification.unread { border-color: rgba(184,255,61,.4); }
+.notification.unread { border-color: rgba(30, 111, 235, .42); box-shadow: 0 0 0 4rpx rgba(30, 111, 235, .08), var(--void-shadow); }
