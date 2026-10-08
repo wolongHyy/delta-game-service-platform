@@ -1,11 +1,11 @@
-const core = require('./lib/core')
-const setup = require('./handlers/setup')
-const auth = require('./handlers/auth')
-const customer = require('./handlers/customer')
-const orders = require('./handlers/orders')
-const community = require('./handlers/community')
-const fighter = require('./handlers/fighter')
-const admin = require('./handlers/admin')
+const core = require('./lib-core')
+const setup = require('./handler-setup')
+const auth = require('./handler-auth')
+const customer = require('./handler-customer')
+const orders = require('./handler-orders')
+const community = require('./handler-community')
+const fighter = require('./handler-fighter')
+const admin = require('./handler-admin')
 
 const ROUTES = {
   setup: setup.setup,

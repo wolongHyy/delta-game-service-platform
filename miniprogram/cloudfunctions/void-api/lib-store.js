@@ -1,4 +1,4 @@
-const core = require('./core')
+const core = require('./lib-core')
 
 async function addEvent (orderId, fromStatus, toStatus, actorRole, actorId, note) {
   try {

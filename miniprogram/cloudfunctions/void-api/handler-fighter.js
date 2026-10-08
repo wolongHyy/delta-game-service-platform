@@ -1,6 +1,6 @@
-const core = require('../lib/core')
-const store = require('../lib/store')
-const orders = require('./orders')
+const core = require('./lib-core')
+const store = require('./lib-store')
+const orders = require('./handler-orders')
 
 const APPLY_LABEL = {
   none: '尚未提交入驻申请',

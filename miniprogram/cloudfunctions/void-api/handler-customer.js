@@ -1,5 +1,5 @@
-const core = require('../lib/core')
-const seed = require('../lib/seed')
+const core = require('./lib-core')
+const seed = require('./lib-seed')
 
 function decorated (companion) {
   const item = core.withId(companion) || {}

@@ -1,5 +1,5 @@
-const core = require('../lib/core')
-const seed = require('../lib/seed')
+const core = require('./lib-core')
+const seed = require('./lib-seed')
 
 async function ensureRecord (collection, id, data) {
   const existing = await core.getDoc(collection, id)

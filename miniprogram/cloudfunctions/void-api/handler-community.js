@@ -1,5 +1,5 @@
-const core = require('../lib/core')
-const store = require('../lib/store')
+const core = require('./lib-core')
+const store = require('./lib-store')
 
 function postView (post) {
   const item = core.withId(post)

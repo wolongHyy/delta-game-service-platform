@@ -1,4 +1,4 @@
-const core = require('../lib/core')
+const core = require('./lib-core')
 
 function publicUser (user, admin) {
   const item = user || {}

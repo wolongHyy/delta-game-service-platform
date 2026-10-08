@@ -24,7 +24,8 @@
 - 当前 `project.config.json` 已切换到 `wxb365a50412fa923d`（`VOIDLine`）。开发者工具实测：`gameApp: false`、`appType: 0`，属于**正式普通小程序**，可以继续使用云开发。
 - 如果开发者工具上传时出现 `game.json`，通常是旧测试号/小游戏项目缓存串入了当前工程；退出开发者工具，清理旧项目记录或重新导入 `miniprogram/` 后即可恢复，不需要真的创建 `game.json`。
 
-当前工程已用 `wxb365a50412fa923d` 成功上传 `1.1.4` 体验测试版本。接下来只需要开通云开发、部署云函数，再按下面的真机流程验收。
+当前工程已用 `wxb365a50412fa923d` 成功上传 `1.1.5` 体验测试版本，云开发环境 ID 为 `void-prod-d7gncmu1ua9c18208`（已写进 `utils/env.js`，首次打开即可直连，不需要再手填）。
+已实测跑通：看帖下单 → 提交付款凭证 → 管理员确认到账 → 打手接单/开始/完工 → 管理员确认完成 → 成交凭证回写 → 社区发帖审核/点赞/收藏/关注/评论。接下来只需要把体验成员加进后台，再按下面的真机流程验收。
 
 #### 0.1 注册一个正式小程序（个人主体免费）
 
@@ -49,23 +50,45 @@
 ### 2. 开通云开发并新建环境
 
 1. 开发者工具顶部点「云开发」按钮（首次会提示开通，免费额度足够测试）。
-2. 「环境」→「新建环境」，建议命名 `void-prod`，创建完成后**记下环境 ID**
-   （形如 `void-prod-3g8x9a`，是一串字母数字短横线组合，不是中文名称）。
-3. 环境 ID 在云开发控制台「设置 → 环境 ID」里也能查到。
+2. 本项目已在环境 `void-prod-d7gncmu1ua9c18208` 上完成初始化，直接复用即可。
+   如果要自己新建环境：「环境」→「新建环境」→ 命名 `void-prod` → 创建完成后**记下环境 ID**
+   （形如 `void-prod-d7gncmu1ua9c18208`，是一串字母数字短横线组合，不是中文名称）。
+3. 环境 ID 在云开发控制台「设置 → 环境 ID」里也能查到；换环境后要同步改 `utils/env.js`。
 
-### 3. 部署云函数
+### 3. 部署云函数（当前版本必须用 CLI 扁平结构部署）
 
-1. 左侧资源管理器展开 `cloudfunctions/void-api`。
-2. **右键 `void-api` 文件夹** →「上传并部署：云端安装依赖（不上传 node_modules）」。
-3. 等待终端出现「上传成功」。`wx-server-sdk` 由云端安装，本地不用 `npm install`。
-4. 部署完成后在云开发控制台「云函数」里应能看到 `void-api`。
+1. 确认目录结构是**扁平**的：`cloudfunctions/void-api/` 下只能有 `index.js`、`handler-*.js`、
+   `lib-*.js`、`config.json`、`package.json` 这些**文件**，不要有子文件夹。
+2. 用命令行部署（在 `D:\微信web开发者工具` 目录下执行，`--remote-npm-install` 让云端装依赖）：
 
-> 必须选「云端安装依赖」，不要选「上传所有文件」，否则会把本地 `node_modules` 一起传上去，又慢又容易失败。
+```powershell
+Set-Location 'D:\微信web开发者工具'
+.\cli.bat cloud functions deploy `
+  --env 'void-prod-d7gncmu1ua9c18208' `
+  --paths 'C:\Users\1\Desktop\VOID\delta_app\miniprogram\cloudfunctions\void-api' `
+  --remote-npm-install `
+  --project 'C:\Users\1\Desktop\VOID\delta_app\miniprogram'
+```
+
+3. 看到 `success: true`、`filesCount: 13` 即为成功；`wx-server-sdk` 由云端安装，本地不用 `npm install`。
+4. 部署完成后在云开发控制台「云函数」里应能看到 `void-api`（运行时 Nodejs16.13）。
+
+> **为什么要扁平？** 当前开发者工具（Stable v2.01.2510290）的 CLI 打包有 bug：
+> 只要云函数目录里含子文件夹（原来的 `handlers/`、`lib/`），上传就会报
+> `EISDIR: illegal operation on a directory, read`。把文件全部放平、`require()` 改成同级路径后即可正常部署。
+> 以后新增代码也请放在 `cloudfunctions/void-api/` 根目录下，不要再建子文件夹。
+
+> 如果改用开发者工具右键「上传并部署：云端安装依赖」，同样要在扁平结构下操作；
+> 一旦重新加回子文件夹，就会再次触发上面的 EISDIR 错误。
+
+> **云函数超时**：默认 3 秒，首次 `setup` 要连续建 17 个集合、写种子数据，容易超时。
+> 建议在云开发控制台「云函数 → void-api → 配置」把超时时间调到 20 秒。
+> 初始化是幂等的，中间超时后重试或直接在控制台调大超时都行，已建好的集合不会被重复创建。
 
 ### 4. 在小程序里填写环境 ID 并初始化
 
 1. 编译运行小程序，进入「我的 → 云开发设置」（首次启动会自动跳到 `/pages/setup/setup`）。
-2. 在输入框填写第 2 步记下的**环境 ID**。
+2. 输入框里已经预填第 2 步的环境 ID（`void-prod-d7gncmu1ua9c18208`），通常直接点下一步即可。
 3. 点「保存并重新连接」，状态栏显示”已切换到 xxx，可以继续初始化云环境”。
 4. 点「初始化云环境」。云函数会自动建表、写入示例服务档位与公告。
 5. 初始化完成后：
@@ -79,7 +102,7 @@
 ## 二、日常开发
 
 - 改前端代码：保存后开发者工具自动热编译，直接看模拟器即可。
-- 改云函数代码：**必须重新「上传并部署：云端安装依赖」**，改完不部署等于没改。
+- 改云函数代码：**必须重新用上面的 CLI 命令部署一次**（或右键「上传并部署：云端安装依赖」），改完不部署等于没改。
 - 改了 `utils/env.js` 里的 `CLOUD_ENV_ID` 默认值：只影响首次安装的默认环境，已保存过的用户仍读本地缓存。
 
 ### 目录结构
@@ -112,8 +135,11 @@ miniprogram/
   cloudfunctions/
     void-api/
       index.js            action 路由表
-      handlers/           按业务域拆分的处理函数
-      lib/                core（集合名/状态机/统一返回）、store、seed 示例数据
+      handler-*.js        按业务域拆分的处理函数（管理员/身份/社区/客户/打手/订单/初始化）
+      lib-*.js            core（集合名/状态机/统一返回）、store、seed 示例数据
+      config.json         云函数配置（权限、超时）
+      package.json        依赖声明（wx-server-sdk，云端安装）
+      ⚠️ 扁平结构：不要再建 handlers/、lib/ 子文件夹，否则 CLI 上传报 EISDIR
 ```
 
 ## 三、云函数 action 一览

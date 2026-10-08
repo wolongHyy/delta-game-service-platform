@@ -1,6 +1,6 @@
-const core = require('../lib/core')
-const store = require('../lib/store')
-const orders = require('./orders')
+const core = require('./lib-core')
+const store = require('./lib-store')
+const orders = require('./handler-orders')
 
 async function dashboard (ctx) {
   await core.assertAdmin(ctx.openid)

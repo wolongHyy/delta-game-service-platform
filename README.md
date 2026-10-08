@@ -122,7 +122,7 @@ app/                    # Next.js 应用
   start.bat             # Windows 便携版启动
   server.js             # 生产版入口
 miniprogram/            # 原生微信小程序（云开发版，独立于网页版）
-  cloudfunctions/void-api/   # 云函数：全部业务读写入口
+  cloudfunctions/void-api/   # 云函数：全部业务读写入口（扁平结构：index/handler-*/lib-*）
   pages/                     # 首页/服务/社区/消息/订单/打手/管理端等
   utils/                     # 云函数调用封装、环境 ID、格式化
 node/                   # 便携版 Node.js 运行时（不入库）
@@ -214,13 +214,16 @@ AI_MODEL=deepseek-chat
 小程序不依赖网页版服务，数据独立存放在微信云数据库。首次部署见 `miniprogram/README.md`，核心步骤：
 
 ```text
-0. 准备一个「正式注册的小程序 AppID」（测试号不能用云开发），填进 project.config.json
+0. 正式注册的小程序 AppID（测试号不能用云开发）已预置：wxb365a50412fa923d
 1. 微信开发者工具导入 miniprogram/
-2. 云开发 → 新建环境 → 记下环境 ID
-3. 右键 cloudfunctions/void-api → 上传并部署：云端安装依赖
-4. 小程序内「我的 → 云开发设置」→ 填环境 ID → 保存 → 初始化云环境
-5. 第一个初始化的人自动成为管理员
+2. 云开发环境已建好：void-prod-d7gncmu1ua9c18208（已写入 utils/env.js）
+3. 用 CLI 部署云函数（当前必须扁平结构，详见 miniprogram/README.md 第 3 节）
+4. 小程序内「我的 → 云开发设置」→ 初始化云环境（第一个初始化的人自动成为管理员）
+5. 后台把客户加成「体验成员」→ 设为体验版 → 扫码即可使用
 ```
+
+> `cloudfunctions/void-api/` 必须保持**扁平**：只有 `index.js`、`handler-*.js`、`lib-*.js` 等文件，
+> 不能有 `handlers/`、`lib/` 子文件夹，否则当前开发者工具 CLI 会报 `EISDIR`。
 
 > 云开发只解决「接口能不能访问」，**不能绕过**小程序备案、服务类目审核与内容审核。
 > 另外，微信的「小程序测试号」不能使用云开发，必须换成正式 AppID。

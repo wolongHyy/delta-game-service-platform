@@ -1,5 +1,5 @@
-const core = require('../lib/core')
-const store = require('../lib/store')
+const core = require('./lib-core')
+const store = require('./lib-store')
 
 function readable (order) {
   const item = core.withId(order)
