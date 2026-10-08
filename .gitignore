@@ -43,3 +43,6 @@ app/src/lib/ai/knowledge-seed.json
 # Codex 临时脚本与验收草稿（不属于产品源码）
 .codex-*
 app/.codex-*
+
+# 微信小程序本地构建缓存
+miniprogram/miniprogram_npm/
