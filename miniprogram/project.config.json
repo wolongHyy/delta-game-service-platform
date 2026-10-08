@@ -1,7 +1,7 @@
 {
   "compileType": "miniprogram",
   "cloudfunctionRoot": "cloudfunctions/",
-  "appid": "wxd25e5b566879a5d5",
+  "appid": "wxb365a50412fa923d",
   "projectname": "delta-club-devtools",
   "setting": {
     "es6": true,
