@@ -1,0 +1,19 @@
+<view class="page has-dock">
+  <view class="hud" wx:if="{{item}}">
+    <text class="eyebrow">ORDER / CONFIGURE</text>
+    <view class="between mt-16"><text class="title sm">{{item.name}}</text><text class="price">¥{{item.priceText || item.price}}<small>/{{item.unit}}</small></text></view>
+    <text class="muted mt-8">{{item.description}}</text>
+  </view>
+  <view class="hud quiet mt-24" wx:if="{{item}}">
+    <text class="eyebrow blue">任务参数</text>
+    <view class="field mt-16"><text class="field-label">服务单位 × {{unitCount}}</text><view class="stepper"><button class="step-btn" data-delta="-1" bindtap="step">−</button><text class="mono step-value">{{unitCount}}</text><button class="step-btn" data-delta="1" bindtap="step">＋</button></view></view>
+    <view class="field mt-16"><text class="field-label">服务规格</text><input class="input" data-field="spec" value="{{spec}}" bindinput="onField" placeholder="例如 单陪 / 双陪 / 教学" /></view>
+    <view class="field mt-16"><text class="field-label">游戏 ID</text><input class="input" data-field="inGameId" value="{{inGameId}}" bindinput="onField" placeholder="请输入你的游戏内 ID" /></view>
+    <view class="field mt-16"><text class="field-label">模式</text><input class="input" data-field="gameMode" value="{{gameMode}}" bindinput="onField" placeholder="例如 机密 / 绝密 / 趣味" /></view>
+    <view class="field mt-16"><text class="field-label">地图 / 关卡</text><input class="input" data-field="mapName" value="{{mapName}}" bindinput="onField" placeholder="例如 零号大坝" /></view>
+    <view class="field mt-16"><text class="field-label">当前段位</text><input class="input" data-field="rank" value="{{rank}}" bindinput="onField" placeholder="选填" /></view>
+    <view class="field mt-16"><text class="field-label">备注</text><textarea class="textarea" data-field="remark" value="{{remark}}" bindinput="onField" placeholder="时间、打法偏好、特殊要求"></textarea></view>
+  </view>
+  <view class="hud danger mt-24" wx:if="{{error}}"><text class="red">{{error}}</text></view>
+  <view class="dock row gap-16" wx:if="{{item}}"><view class="grow"><text class="faint">应付合计</text><text class="price" style="display:block">¥{{amountText}}</text></view><button class="btn btn-primary grow" bindtap="submit" loading="{{submitting}}" disabled="{{submitting || !item}}">提交订单</button></view>
+</view>

@@ -1,0 +1,56 @@
+<view class="page home-page">
+  <view class="hud hero">
+    <view class="between">
+      <text class="eyebrow">VOID / DELTA OPERATIONS</text>
+      <view class="status lime"><text>●</text><text>SYSTEM ONLINE</text></view>
+    </view>
+    <text class="title">三角洲游戏服务平台</text>
+    <text class="muted mt-12">点单、支付核销、打手服务、社区成交凭证在同一条链路里闭环。</text>
+    <view class="hero-stats row">
+      <view class="hero-stat"><text class="mono lime">{{stats.posts || 0}}</text><text class="faint">社区帖</text></view>
+      <view class="hero-stat"><text class="mono gold">{{stats.completedOrders || 0}}</text><text class="faint">成交单</text></view>
+      <view class="hero-stat"><text class="mono blue">{{hot.length || 0}}</text><text class="faint">可下单</text></view>
+    </view>
+  </view>
+
+  <view class="search mt-24">
+    <text class="lime mono">⌕</text>
+    <input placeholder="搜索服务、档位或模式" bindconfirm="openServices" disabled />
+    <text class="faint" bindtap="openServices">筛选</text>
+  </view>
+
+  <view class="section-head mt-24"><text class="section-title">服务矩阵</text><text class="faint mono" bindtap="openServices">VIEW ALL / →</text></view>
+  <view class="service-grid" wx:if="{{serviceTypes.length}}">
+    <view class="hud service-tile" wx:for="{{serviceTypes}}" wx:key="id" data-id="{{item.id}}" bindtap="openService">
+      <text class="mono faint">0{{index + 1}}</text>
+      <text class="service-name">{{item.name}}</text>
+      <text class="faint clamp-2">{{item.description || '选择该类型查看可下单档位'}}</text>
+      <text class="lime">↗</text>
+    </view>
+  </view>
+
+  <view class="section-head mt-24"><text class="section-title">热门档位</text><text class="faint mono">SORT / SALES</text></view>
+  <view class="stack" wx:if="{{hot.length}}">
+    <view class="hud companion-card" wx:for="{{hot}}" wx:key="id" data-id="{{item.id}}" bindtap="openCompanion">
+      <view class="row gap-16">
+        <view class="companion-mark"><image class="avatar lg" wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill"></image><text wx:else>{{item.initial}}</text></view>
+        <view class="grow">
+          <view class="between"><text class="section-title">{{item.name}}</text><text class="price">¥{{item.priceText}}<small>/{{item.unit}}</small></text></view>
+          <text class="muted clamp-2 mt-8">{{item.description}}</text>
+          <view class="row wrap gap-8 mt-12"><text class="chip" wx:for="{{item.tags}}" wx:key="*this">{{item}}</text><text class="chip">{{item.rank || '标准档'}}</text></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-head mt-24"><text class="section-title">社区动态</text><text class="faint mono" bindtap="openCommunity">ENTER / →</text></view>
+  <view class="hud post-teaser" wx:for="{{posts}}" wx:key="id" data-id="{{item.id}}" bindtap="openPost">
+    <view class="between"><text class="lime mono">INTEL / {{item.topic || '战术交流'}}</text><text class="faint">{{item.timeText}}</text></view>
+    <text class="post-title clamp-2 mt-12">{{item.title}}</text>
+    <text class="muted clamp-2 mt-8">{{item.content}}</text>
+    <view class="between mt-16"><text class="faint mono">♥ {{item.likeCountText}} · 评论 {{item.commentCountText}}</text><text class="blue">阅读 →</text></view>
+  </view>
+
+  <view class="empty mt-24" wx:if="{{!loading && !hot.length}}"><text>暂无可下单服务。管理员可在云开发控制台或管理页导入服务档位。</text></view>
+  <view class="hud danger mt-24" wx:if="{{error}}"><text class="eyebrow red">CONNECTION ERROR</text><text class="muted mt-12">{{error}}</text><button class="btn btn-ghost mt-16" bindtap="load">重试连接</button></view>
+</view>

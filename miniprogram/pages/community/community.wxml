@@ -1,0 +1,19 @@
+<view class="page">
+  <view class="hud">
+    <view class="between"><view><text class="eyebrow">COMMUNITY / FIELD INTEL</text><text class="title sm" style="display:block">战术社区</text></view><view class="status lime"><text>●</text><text>{{stats.contributors || 0}} 玩家</text></view></view>
+    <text class="muted mt-12">交流打法、分享战绩、关联服务下单。新帖先审核，成交凭证只展示脱敏数据。</text>
+    <view class="row gap-12 mt-24"><button class="btn btn-primary grow" bindtap="createPost">发布情报</button><button class="btn btn-ghost" bindtap="openNotifications">通知</button></view>
+  </view>
+  <view class="channel-bar mt-24"><text class="chip {{channel === item.id ? 'active' : ''}}" wx:for="{{channels}}" wx:key="id" data-id="{{item.id}}" bindtap="select">{{item.label}}</text></view>
+  <view class="stack mt-24" wx:if="{{posts.length}}">
+    <view class="hud post-card" wx:for="{{posts}}" wx:key="id" data-id="{{item.id}}" bindtap="openPost">
+      <view class="between"><view class="row gap-12"><view class="avatar sm post-avatar">{{item.authorInitial}}</view><view><text>{{item.authorName || 'VOID 玩家'}}</text><text class="faint" style="display:block">Lv.{{item.authorLevel || 1}} · {{item.timeText}}</text></view></view><text class="status {{item.statusTone}}">{{item.statusLabel}}</text></view>
+      <text class="post-title clamp-2 mt-16">{{item.title}}</text>
+      <text class="muted clamp-3 mt-8">{{item.content}}</text>
+      <view class="row wrap gap-8 mt-16"><text class="chip">{{item.topic || '战术交流'}}</text><text class="chip gold" wx:if="{{item.knowledge}}">知识库</text><text class="chip" wx:if="{{item.serviceName}}">可下单 · {{item.serviceName}}</text></view>
+      <view class="between mt-16"><text class="faint mono">♥ {{item.likeCountText}} · 评论 {{item.commentCountText}} · 成交 {{item.evidenceCount || 0}}</text><text class="blue">进入 →</text></view>
+    </view>
+  </view>
+  <view class="empty mt-24" wx:if="{{!loading && !posts.length}}"><text>这个频道暂时没有已发布内容。</text></view>
+  <view class="hud danger mt-24" wx:if="{{error}}"><text class="red">{{error}}</text></view>
+</view>

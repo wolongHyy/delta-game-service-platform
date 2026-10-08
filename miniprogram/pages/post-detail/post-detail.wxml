@@ -1,0 +1,57 @@
+<view class="page has-dock">
+  <view class="hud" wx:if="{{post}}">
+    <view class="between"><text class="eyebrow">INTEL / {{post.topic || 'TACTICAL NOTE'}}</text><text class="status {{post.statusTone}}">{{post.statusLabel}}</text></view>
+    <text class="title sm mt-16" style="display:block">{{post.title}}</text>
+    <view class="row gap-12 mt-20">
+      <view class="avatar sm post-avatar">{{post.authorInitial}}</view>
+      <view class="grow"><text>{{post.authorName}}</text><text class="faint" style="display:block">Lv.{{post.authorLevel || 1}} · {{post.timeText}}</text></view>
+      <button class="btn btn-ghost compact" bindtap="toggleFollow">{{post.followingAuthor ? '已关注' : '关注'}}</button>
+    </view>
+    <text class="post-content mt-24" style="display:block">{{post.content}}</text>
+    <view class="image-grid mt-16" wx:if="{{post.images.length}}">
+      <image class="post-image" wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewImage"></image>
+    </view>
+    <view class="row wrap gap-8 mt-16"><text class="chip" wx:for="{{post.tags}}" wx:key="*this">{{item}}</text><text class="chip gold" wx:if="{{post.knowledge}}">知识库收录</text></view>
+  </view>
+
+  <view class="hud quiet mt-24" wx:if="{{post && post.serviceId}}">
+    <view class="between"><view><text class="eyebrow blue">LINKED SERVICE</text><text class="section-title" style="display:block">{{post.serviceName || '关联陪玩服务'}}</text></view><text class="blue">可下单 →</text></view>
+  </view>
+
+  <view class="hud mt-24" wx:if="{{post}}">
+    <text class="eyebrow">INTERACTIONS</text>
+    <view class="row gap-12 mt-16">
+      <button class="btn btn-ghost grow" bindtap="toggleLike">{{post.liked ? '已赞' : '点赞'}} · {{post.likeCount}}</button>
+      <button class="btn btn-ghost grow" bindtap="toggleFavorite">{{post.favorited ? '已收藏' : '收藏'}} · {{post.favoriteCount}}</button>
+    </view>
+  </view>
+
+  <view class="hud mt-24" wx:if="{{post}}">
+    <view class="between"><text class="eyebrow gold">TRADE / EVIDENCE</text><text class="faint mono">{{evidence.length}} RECORDS</text></view>
+    <text class="muted mt-8" style="display:block">只展示脱敏成交数据，不含手机号、OpenID 等隐私信息。</text>
+    <view class="evidence-card" wx:for="{{evidence}}" wx:key="orderShort">
+      <view class="between"><text class="mono gold">{{item.orderShort}}</text><text class="faint mono">{{item.completedAt}}</text></view>
+      <text class="section-title mt-8" style="display:block">{{item.serviceName}}</text>
+      <text class="muted mt-8" style="display:block">{{item.unitCount}} {{item.unit}} · 成交 ¥{{item.amount}}</text>
+    </view>
+    <view class="empty" wx:if="{{!evidence.length}}">该帖子还没有关联成交记录。通过“看帖下单”完成的订单会自动回写到这里。</view>
+  </view>
+
+  <view class="hud quiet mt-24" wx:if="{{post}}">
+    <view class="between"><text class="section-title">讨论区</text><text class="faint mono">{{comments.length}} REPLIES</text></view>
+    <view class="comment" wx:for="{{comments}}" wx:key="id">
+      <view class="avatar sm post-avatar">{{item.authorInitial}}</view>
+      <view class="grow"><text>{{item.authorName}}</text><text class="muted" style="display:block">{{item.content}}</text><text class="faint" style="display:block">{{item.createdAt}}</text></view>
+    </view>
+    <view class="empty" wx:if="{{!comments.length}}">还没有评论，写下第一条战术回复。</view>
+    <textarea class="textarea mt-16" value="{{commentText}}" bindinput="onComment" placeholder="友好交流，禁止代练/外挂等违规内容"></textarea>
+    <button class="btn btn-primary mt-16" bindtap="submitComment" loading="{{submitting}}" disabled="{{submitting}}">发表评论</button>
+  </view>
+
+  <view class="hud danger mt-24" wx:if="{{error}}"><text class="red">{{error}}</text></view>
+
+  <view class="dock row gap-12" wx:if="{{post && post.serviceId}}">
+    <view class="grow"><text class="faint">关联服务</text><text class="section-title" style="display:block">{{post.serviceName}}</text></view>
+    <button class="btn btn-primary grow" bindtap="orderService">看帖下单</button>
+  </view>
+</view>

@@ -46,3 +46,6 @@ app/.codex-*
 
 # 微信小程序本地构建缓存
 miniprogram/miniprogram_npm/
+# ===== 微信云开发（云函数依赖由开发者工具云端安装，不入库）=====
+miniprogram/cloudfunctions/**/node_modules/
+miniprogram/cloudfunctions/**/package-lock.json

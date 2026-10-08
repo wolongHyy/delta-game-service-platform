@@ -1,0 +1,10 @@
+<view class="page ai-page">
+  <scroll-view class="chat-scroll" scroll-y scroll-into-view="chat-bottom" enhanced>
+    <view class="stack">
+      <view class="bubble {{item.role}}" wx:for="{{messages}}" wx:key="index"><text class="eyebrow {{item.role === 'assistant' ? 'blue' : ''}}">{{item.role === 'assistant' ? 'VOID AI' : 'YOU'}}</text><text class="bubble-text">{{item.content}}</text></view>
+      <view id="chat-bottom" style="height:20rpx"></view>
+    </view>
+  </scroll-view>
+  <view class="quick-row"><text class="chip" wx:for="{{quick}}" wx:key="*this" data-text="{{item}}" bindtap="sendQuick">{{item}}</text></view>
+  <view class="chat-input"><input class="input grow" value="{{input}}" bindinput="onInput" bindconfirm="send" placeholder="输入问题…" /><button class="btn btn-primary" style="min-width:150rpx" bindtap="send" loading="{{sending}}" disabled="{{sending}}">发送</button></view>
+</view>

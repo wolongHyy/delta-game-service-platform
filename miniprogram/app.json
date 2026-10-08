@@ -1,31 +1,45 @@
 {
   "pages": [
     "pages/login/login",
-    "pages/index/index",
-    "pages/debug/debug"
+    "pages/home/home",
+    "pages/services/services",
+    "pages/community/community",
+    "pages/messages/messages",
+    "pages/profile/profile",
+    "pages/service-detail/service-detail",
+    "pages/order-create/order-create",
+    "pages/orders/orders",
+    "pages/order-detail/order-detail",
+    "pages/post-detail/post-detail",
+    "pages/post-create/post-create",
+    "pages/notifications/notifications",
+    "pages/ai-chat/ai-chat",
+    "pages/fighter/fighter",
+    "pages/admin/admin",
+    "pages/setup/setup"
   ],
   "window": {
-    "navigationBarTitleText": "三角洲游戏服务平台",
-    "navigationBarBackgroundColor": "#f3f7ff",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#f3f7ff"
+    "navigationBarTitleText": "VOID 三角洲游戏服务平台",
+    "navigationBarBackgroundColor": "#05080B",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#05080B",
+    "backgroundTextStyle": "dark",
+    "enablePullDownRefresh": false
   },
   "tabBar": {
-    "color": "#8b98a9",
-    "selectedColor": "#0ea5e9",
-    "backgroundColor": "#ffffff",
+    "color": "#6B777D",
+    "selectedColor": "#B8FF3D",
+    "backgroundColor": "#0B1117",
     "borderStyle": "black",
     "list": [
-      {
-        "pagePath": "pages/index/index",
-        "text": "点单"
-      },
-      {
-        "pagePath": "pages/debug/debug",
-        "text": "调试"
-      }
+      { "pagePath": "pages/home/home", "text": "首页" },
+      { "pagePath": "pages/services/services", "text": "服务" },
+      { "pagePath": "pages/community/community", "text": "社区" },
+      { "pagePath": "pages/messages/messages", "text": "消息" },
+      { "pagePath": "pages/profile/profile", "text": "我的" }
     ]
   },
   "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
 }

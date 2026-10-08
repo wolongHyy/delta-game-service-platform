@@ -1,0 +1,75 @@
+<view class="page">
+  <view class="hud"><view class="between"><view><text class="eyebrow">ADMIN / COMMAND DECK</text><text class="title sm" style="display:block">管理指挥台</text></view><view class="status lime"><text>●</text><text>AUTHORIZED</text></view></view><text class="muted mt-8" style="display:block">仅管理员 OpenID 可见。付款核销、订单状态、打手审核、社区治理均写入同一套云端数据。</text></view>
+
+  <view class="stats-row mt-24" wx:if="{{stats}}">
+    <view class="hud stat"><text class="mono amber">{{stats.pendingPayments}}</text><text class="faint">待核销</text></view>
+    <view class="hud stat"><text class="mono blue">{{stats.pendingOrders}}</text><text class="faint">待接单</text></view>
+    <view class="hud stat"><text class="mono lime">{{stats.inProgress}}</text><text class="faint">服务中</text></view>
+    <view class="hud stat"><text class="mono amber">{{stats.completionPending}}</text><text class="faint">待完工</text></view>
+    <view class="hud stat"><text class="mono gold">{{stats.completed}}</text><text class="faint">已完成</text></view>
+    <view class="hud stat"><text class="mono blue">{{stats.users}}</text><text class="faint">注册玩家</text></view>
+  </view>
+
+  <view class="row wrap gap-12 mt-24">
+    <text class="chip {{tab === 'orders' ? 'active' : ''}}" data-tab="orders" bindtap="tab">订单调度</text>
+    <text class="chip {{tab === 'applications' ? 'active' : ''}}" data-tab="applications" bindtap="tab">打手审核（{{stats.applicationsPending || 0}}）</text>
+    <text class="chip {{tab === 'community' ? 'active' : ''}}" data-tab="community" bindtap="tab">社区治理（{{stats.postsPending || 0}}）</text>
+  </view>
+
+  <view class="stack mt-24" wx:if="{{tab === 'orders'}}">
+    <view class="hud order-card" wx:for="{{orders}}" wx:key="id">
+      <view class="between"><text class="mono">ORDER / {{item.orderShort}}</text><text class="status {{item.statusTone}}">{{item.statusLabel}}</text></view>
+      <text class="section-title mt-12" style="display:block">{{item.serviceName}} · {{item.companionName}}</text>
+      <text class="muted mt-8" style="display:block">{{item.customerName || '玩家'}} · 游戏 ID {{item.inGameId}} · {{item.unitCountText}} 单位 · ¥{{item.amountText}}</text>
+      <text class="faint mono mt-8" style="display:block">{{item.orderNo}}</text>
+      <text class="amber mt-8" style="display:block" wx:if="{{item.paymentNote}}">付款备注：{{item.paymentNote}}</text>
+      <text class="lime mt-8" style="display:block" wx:if="{{item.fighterId}}">已指派操作手：{{item.fighterName || item.fighterId}}</text>
+      <view class="row wrap gap-12 mt-16">
+        <button class="btn btn-primary grow" wx:if="{{item.status === 'payment_review'}}" data-id="{{item.id}}" data-action="pay" bindtap="orderAction">确认到账</button>
+        <button class="btn btn-danger grow" wx:if="{{item.status === 'payment_review'}}" data-id="{{item.id}}" data-action="reject" bindtap="orderAction">驳回付款</button>
+        <picker wx:if="{{item.status === 'pending'}}" mode="selector" range="{{fighterNames}}" data-id="{{item.id}}" bindchange="assign"><view class="picker">指派操作手（{{fighterNames.length}} 人在线）</view></picker>
+        <button class="btn btn-blue grow" wx:if="{{item.status === 'assigned'}}" data-id="{{item.id}}" data-status="in_progress" bindtap="setStatus">代开服务</button>
+        <button class="btn btn-primary grow" wx:if="{{item.status === 'completion_pending'}}" data-id="{{item.id}}" data-status="completed" bindtap="setStatus">确认完工</button>
+      </view>
+    </view>
+    <view class="empty" wx:if="{{!orders.length}}">暂无订单。</view>
+  </view>
+
+  <view class="stack mt-24" wx:if="{{tab === 'applications'}}">
+    <view class="hud" wx:for="{{applications}}" wx:key="id">
+      <view class="between"><text class="mono">{{item.gameName}}</text><text class="status {{item.status === 'pending' ? 'amber' : (item.status === 'approved' ? 'lime' : 'red')}}">{{item.status}}</text></view>
+      <text class="muted mt-12" style="display:block">{{item.rank || '未填写段位'}} · {{item.contact}}</text>
+      <text class="muted mt-8" style="display:block">{{item.intro || '无自我介绍'}}</text>
+      <view class="row gap-12 mt-16" wx:if="{{item.status === 'pending'}}">
+        <button class="btn btn-primary grow" data-id="{{item.id}}" data-status="approved" bindtap="applicationAction">通过</button>
+        <button class="btn btn-danger grow" data-id="{{item.id}}" data-status="rejected" bindtap="applicationAction">驳回</button>
+      </view>
+    </view>
+    <view class="empty" wx:if="{{!applications.length}}">暂无打手申请。</view>
+  </view>
+
+  <view class="stack mt-24" wx:if="{{tab === 'community'}}">
+    <view class="hud" wx:for="{{posts}}" wx:key="id">
+      <view class="between"><text class="eyebrow">POST / {{item.status}}</text><text class="faint mono">{{item.createdAt}}</text></view>
+      <text class="section-title mt-12" style="display:block">{{item.title}}</text>
+      <text class="muted clamp-3 mt-8">{{item.content}}</text>
+      <view class="row wrap gap-8 mt-12">
+        <text class="chip" wx:if="{{item.featured}}">已精选</text>
+        <text class="chip gold" wx:if="{{item.knowledge}}">已收录知识库</text>
+        <text class="chip" wx:if="{{item.evidenceCount}}">成交 {{item.evidenceCount}}</text>
+      </view>
+      <view class="row wrap gap-12 mt-16">
+        <button class="btn btn-primary grow" wx:if="{{item.status === 'pending'}}" data-id="{{item.id}}" data-status="published" bindtap="postAction">发布</button>
+        <button class="btn btn-danger grow" wx:if="{{item.status === 'pending'}}" data-id="{{item.id}}" data-status="rejected" bindtap="postAction">驳回</button>
+        <button class="btn btn-ghost grow" wx:if="{{item.status === 'published'}}" data-id="{{item.id}}" data-status="hidden" bindtap="postAction">下架</button>
+        <button class="btn btn-ghost grow" wx:if="{{item.status === 'published' && !item.featured}}" data-id="{{item.id}}" data-status="published" data-featured="1" bindtap="postAction">精选</button>
+        <button class="btn btn-ghost grow" wx:if="{{item.status === 'published' && item.featured}}" data-id="{{item.id}}" data-status="published" data-featured="0" bindtap="postAction">取消精选</button>
+        <button class="btn btn-ghost grow" wx:if="{{item.status === 'published' && !item.knowledge}}" data-id="{{item.id}}" data-status="published" data-knowledge="1" bindtap="postAction">收录知识库</button>
+        <button class="btn btn-ghost grow" wx:if="{{item.status === 'published' && item.knowledge}}" data-id="{{item.id}}" data-status="published" data-knowledge="0" bindtap="postAction">移出知识库</button>
+      </view>
+    </view>
+    <view class="empty" wx:if="{{!posts.length}}">暂无待治理帖子。</view>
+  </view>
+
+  <view class="hud danger mt-24" wx:if="{{error}}"><text class="red">{{error}}</text></view>
+</view>

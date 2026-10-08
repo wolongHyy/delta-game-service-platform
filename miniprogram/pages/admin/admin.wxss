@@ -1,0 +1,5 @@
+.stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; }
+.stat { padding: 20rpx; }
+.stat .mono { display: block; font-size: 38rpx; font-weight: 700; }
+.stat .faint { display: block; margin-top: 4rpx; font-size: 21rpx; }
+.order-card { padding: 22rpx; }

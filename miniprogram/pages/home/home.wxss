@@ -1,0 +1,17 @@
+.home-page { padding-top: 34rpx; }
+.hero { padding-top: 34rpx; padding-bottom: 30rpx; }
+.hero .title { display: block; max-width: 92%; font-size: 54rpx; }
+.hero-stats { gap: 12rpx; margin-top: 28rpx; }
+.hero-stat { flex: 1; padding: 18rpx; border: 1rpx solid var(--void-border); border-radius: 12rpx; background: rgba(5,8,11,.42); }
+.hero-stat .mono { display: block; font-size: 36rpx; font-weight: 700; }
+.hero-stat .faint { display: block; margin-top: 4rpx; font-size: 21rpx; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14rpx; }
+.service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; }
+.service-tile { min-height: 186rpx; padding: 22rpx; display: flex; flex-direction: column; gap: 8rpx; }
+.service-name { display: block; margin-top: 8rpx; font-size: 32rpx; font-weight: 700; }
+.service-tile > .lime { margin-top: auto; align-self: flex-end; }
+.companion-card { padding: 22rpx; }
+.companion-mark { width: 112rpx; height: 112rpx; flex: 0 0 112rpx; display: flex; align-items: center; justify-content: center; border: 1rpx solid var(--void-border); border-radius: 22rpx; background: radial-gradient(circle at 70% 20%, rgba(184,255,61,.2), transparent 55%), var(--void-raised); color: var(--void-lime); font-family: "Cascadia Mono", monospace; font-size: 44rpx; }
+.companion-mark .avatar { width: 112rpx; height: 112rpx; border: 0; }
+.post-teaser { padding: 22rpx; }
+.post-title { display: block; font-size: 31rpx; font-weight: 700; }

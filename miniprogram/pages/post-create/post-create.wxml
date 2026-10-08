@@ -1,0 +1,27 @@
+<view class="page">
+  <view class="hud quiet"><text class="eyebrow blue">INTEL / SUBMIT</text><text class="title sm" style="display:block">发布社区情报</text><text class="muted mt-8" style="display:block">帖子默认进入人工审核。关联服务后，其他玩家可以从帖子直接进入现有订单流程。</text></view>
+  <view class="hud mt-24">
+    <view class="field"><text class="field-label">标题</text><input class="input" data-field="title" value="{{title}}" bindinput="onField" placeholder="用一句话概括你的内容" /></view>
+    <view class="field mt-16"><text class="field-label">正文</text><textarea class="textarea" data-field="content" value="{{content}}" bindinput="onField" placeholder="打法、经验、队伍招募、交易体验等"></textarea></view>
+
+    <view class="field mt-16">
+      <text class="field-label">配图（选填，最多 9 张）</text>
+      <view class="image-grid mt-12">
+        <view class="image-cell" wx:for="{{images}}" wx:key="*this">
+          <image class="image-thumb" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewImage"></image>
+          <view class="image-remove" data-index="{{index}}" catchtap="removeImage">×</view>
+        </view>
+        <view class="image-add" wx:if="{{images.length < 9}}" bindtap="chooseImages">
+          <text class="mono">＋</text>
+          <text class="faint">{{uploading ? '上传中' : '添加图片'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="field mt-16"><text class="field-label">主题</text><input class="input" data-field="topic" value="{{topic}}" bindinput="onField" placeholder="战术交流 / 版本更新 / 新手答疑" /></view>
+    <view class="field mt-16"><text class="field-label">标签</text><input class="input" data-field="tagsText" value="{{tagsText}}" bindinput="onField" placeholder="用逗号分隔，最多 5 个" /></view>
+    <view class="field mt-16"><text class="field-label">关联服务（可选）</text><picker mode="selector" range="{{serviceNames}}" value="{{serviceIndex}}" bindchange="onServiceChange"><view class="picker">{{serviceNames[serviceIndex] || '不关联服务'}}</view></picker></view>
+    <text class="red mt-16" style="display:block" wx:if="{{error}}">{{error}}</text>
+    <button class="btn btn-primary mt-24" bindtap="submit" loading="{{submitting}}" disabled="{{submitting || uploading}}">提交审核</button>
+  </view>
+</view>

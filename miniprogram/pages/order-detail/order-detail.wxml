@@ -1,0 +1,47 @@
+<view class="page has-dock">
+  <view class="hud" wx:if="{{order}}">
+    <view class="between"><text class="eyebrow">ORDER / {{order.statusCode}}</text><text class="status {{order.statusTone}}">{{order.statusLabel}}</text></view>
+    <text class="title sm mt-16" style="display:block">{{order.serviceName}}</text>
+    <text class="muted mt-8" style="display:block">{{order.companionName}} · {{order.unitCountText}} {{order.spec || '标准'}}</text>
+    <view class="between mt-24"><text class="faint">订单金额</text><text class="price">¥{{order.amountText}}</text></view>
+    <view class="divider mt-16"></view>
+    <view class="kv"><text class="muted">订单编号</text><text class="mono">{{order.orderNo}}</text></view>
+    <view class="kv"><text class="muted">游戏 ID</text><text>{{order.inGameId || '待补充'}}</text></view>
+    <view class="kv"><text class="muted">模式 / 地图</text><text>{{order.gameMode || '--'}} / {{order.mapName || '--'}}</text></view>
+    <view class="kv"><text class="muted">备注</text><text>{{order.remark || '无'}}</text></view>
+    <view class="kv" wx:if="{{order.paymentNote}}"><text class="muted">付款备注</text><text>{{order.paymentNote}}</text></view>
+  </view>
+
+  <view class="hud quiet mt-24" wx:if="{{hint}}"><text class="eyebrow blue">NEXT ACTION</text><text class="muted mt-8" style="display:block">{{hint}}</text></view>
+
+  <view class="hud quiet mt-24" wx:if="{{order}}">
+    <text class="eyebrow blue">FULFILLMENT TIMELINE</text>
+    <view class="timeline mt-16">
+      <view class="timeline-item {{item.done ? 'done' : ''}}" wx:for="{{timeline}}" wx:key="status">
+        <view class="timeline-dot"></view>
+        <view class="timeline-body"><view class="between"><text class="{{item.current ? 'lime' : ''}}">{{item.label}}</text><text class="faint mono">{{item.current ? 'CURRENT' : (item.done ? 'DONE' : 'WAIT')}}</text></view></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="hud warn mt-24" wx:if="{{payOpen}}">
+    <text class="eyebrow amber">PAYMENT PROOF</text>
+    <text class="muted mt-8" style="display:block">{{payment.instructions || '请先按客服提供的二维码付款，再提交可核对的信息。管理员确认到账后订单才会进入接单池。'}}</text>
+    <view class="qr-box mt-16" bindtap="previewQr">
+      <image class="qr-image" wx:if="{{payment.qrUrl}}" src="{{payment.qrUrl}}" mode="aspectFit"></image>
+      <view class="qr-empty" wx:else><text class="faint">管理员尚未上传收款码</text><text class="mono faint">CONTACT SUPPORT</text></view>
+    </view>
+    <text class="faint" style="display:block">点击收款码可放大查看</text>
+    <view class="mt-16"><text class="field-label">付款方式</text><input class="input" data-field="paymentMethod" value="{{paymentMethod}}" bindinput="onField" /></view>
+    <view class="mt-16"><text class="field-label">付款备注 / 付款人</text><input class="input" data-field="paymentNote" value="{{paymentNote}}" bindinput="onField" placeholder="例如：微信昵称 + 尾号" /></view>
+    <button class="btn btn-primary mt-16" bindtap="submitPay" loading="{{submitting}}" disabled="{{submitting}}">提交付款凭证</button>
+  </view>
+
+  <view class="hud danger mt-24" wx:if="{{error}}"><text class="red">{{error}}</text></view>
+
+  <view class="dock row gap-12" wx:if="{{order}}">
+    <button class="btn btn-ghost grow" bindtap="openPost" wx:if="{{order.sourcePostId}}">来源帖子</button>
+    <button class="btn btn-ghost grow" bindtap="cancel" wx:if="{{order.status === 'unpaid' || order.status === 'payment_review' || order.status === 'pending' || order.status === 'assigned' || order.status === 'in_progress'}}">取消订单</button>
+    <button class="btn btn-primary grow" bindtap="togglePay" wx:if="{{order.status === 'unpaid' || order.status === 'payment_review'}}">{{payOpen ? '收起付款' : '提交付款'}}</button>
+  </view>
+</view>

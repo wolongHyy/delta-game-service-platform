@@ -1,0 +1,28 @@
+<view class="page services-page">
+  <view class="hud">
+    <text class="eyebrow">SERVICE / LOADOUT</text>
+    <text class="title sm">选择你的任务配置</text>
+    <view class="search mt-24"><text class="lime mono">⌕</text><input placeholder="关键词、模式、档位" value="{{keyword}}" bindinput="onKeyword" bindconfirm="search" /><text class="blue" bindtap="search">检索</text></view>
+  </view>
+  <scroll-view class="filter-scroll mt-24" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="filter-row">
+      <text class="chip {{activeType === '' ? 'active' : ''}}" data-id="" bindtap="selectType">全部</text>
+      <text class="chip {{activeType === item.id ? 'active' : ''}}" wx:for="{{serviceTypes}}" wx:key="id" data-id="{{item.id}}" bindtap="selectType">{{item.name}}</text>
+    </view>
+  </scroll-view>
+  <view class="row gap-12 mt-16">
+    <text class="chip {{sort === 'default' ? 'active' : ''}}" data-sort="default" bindtap="selectSort">默认排序</text>
+    <text class="chip {{sort === 'price' ? 'active' : ''}}" data-sort="price" bindtap="selectSort">价格从低到高</text>
+    <text class="chip {{sort === 'sales' ? 'active' : ''}}" data-sort="sales" bindtap="selectSort">热销优先</text>
+  </view>
+  <view class="stack mt-24" wx:if="{{companions.length}}">
+    <view class="hud companion-row" wx:for="{{companions}}" wx:key="id" data-id="{{item.id}}" bindtap="openCompanion">
+      <view class="between"><view><text class="section-title">{{item.name}}</text><text class="faint mono" style="display:block">CODE / {{item.codeText}}</text></view><text class="price">¥{{item.priceText}}<small>/{{item.unit}}</small></text></view>
+      <text class="muted clamp-2 mt-12">{{item.description}}</text>
+      <view class="row wrap gap-8 mt-16"><text class="chip" wx:for="{{item.tags}}" wx:key="*this">{{item}}</text><text class="chip">{{item.rank || '标准档'}}</text></view>
+      <view class="between mt-16"><text class="faint mono">SALES {{item.sales || 0}} · RATE {{item.rating || '--'}}</text><text class="lime">下单 →</text></view>
+    </view>
+  </view>
+  <view class="empty mt-24" wx:if="{{!loading && !companions.length}}"><text>没有匹配的服务档位，换个关键词试试。</text></view>
+  <view class="hud danger mt-24" wx:if="{{error}}"><text class="red">{{error}}</text></view>
+</view>

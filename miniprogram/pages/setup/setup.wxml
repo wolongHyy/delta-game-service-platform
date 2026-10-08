@@ -1,0 +1,39 @@
+<view class="page stack">
+  <view class="hud">
+    <text class="eyebrow">CLOUDBASE / CONNECTION</text>
+    <text class="title sm">连接微信云开发</text>
+    <text class="muted mt-12" style="display:block">本页只保存环境 ID，不保存任何密钥。密钥应放在云函数环境变量中。</text>
+  </view>
+
+  <view class="hud quiet">
+    <text class="field-label">云环境 ID</text>
+    <input class="input mono" value="{{envId}}" bindinput="onInput" placeholder="例如 void-prod-3g8x9a" />
+    <button class="btn btn-ghost mt-16" bindtap="save" disabled="{{initializing}}">保存并重新连接</button>
+    <button class="btn btn-primary mt-12" bindtap="initEnv" loading="{{initializing}}" disabled="{{initializing}}">初始化云环境</button>
+    <text class="lime mt-12" style="display:block" wx:if="{{status}}">{{status}}</text>
+  </view>
+
+  <view class="hud mt-24" wx:if="{{report}}">
+    <text class="eyebrow lime">SETUP REPORT</text>
+    <view class="kv"><text class="muted">数据集合</text><text class="mono">{{collectionCount}} 个</text></view>
+    <view class="kv"><text class="muted">当前账号管理员</text><text class="{{admin ? 'lime' : 'red'}}">{{admin ? '已授权' : '否'}}</text></view>
+    <text class="faint mt-12" style="display:block">初始化可重复执行：已存在的数据不会被覆盖，只会补齐缺失的示例档位与公告。</text>
+    <button class="btn btn-primary mt-16" bindtap="goLogin">去登录</button>
+  </view>
+
+  <view class="hud warn">
+    <text class="eyebrow amber">DEPLOY CHECKLIST</text>
+    <view class="check-list">
+      <text>01 / 微信开发者工具 → 云开发 → 新建环境（记下环境 ID）</text>
+      <text>02 / 右键 cloudfunctions/void-api → 上传并部署：云端安装依赖</text>
+      <text>03 / 在本页填写环境 ID → 保存并重新连接 → 初始化云环境</text>
+      <text>04 / 初始化会把当前微信账号设为管理员，并写入示例服务档位</text>
+      <text>05 / 回到登录页保存昵称，即可开始下单、发帖与接单</text>
+    </view>
+  </view>
+
+  <view class="hud danger">
+    <text class="eyebrow red">WHY CLOUD</text>
+    <text class="muted mt-12" style="display:block">云函数由微信侧调用，不需要给小程序配置 HTTPS 业务域名，也避免了局域网 IP 在真机体验版不可用的问题。</text>
+  </view>
+</view>

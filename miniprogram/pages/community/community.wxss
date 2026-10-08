@@ -1,0 +1,4 @@
+.channel-bar { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.post-card { padding: 22rpx; }
+.post-avatar { display: flex; align-items: center; justify-content: center; color: var(--void-lime); font-family: "Cascadia Mono", monospace; }
+.post-title { display: block; font-size: 32rpx; font-weight: 700; }

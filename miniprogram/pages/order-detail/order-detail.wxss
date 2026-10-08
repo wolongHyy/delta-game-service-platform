@@ -1,0 +1,7 @@
+.kv { display: flex; justify-content: space-between; gap: 24rpx; padding: 14rpx 0; color: var(--void-text); font-size: 25rpx; }
+.kv .muted { flex: 0 0 170rpx; }
+.timeline { margin-top: 10rpx; }
+
+.qr-box { display: flex; align-items: center; justify-content: center; min-height: 320rpx; border: 1rpx solid var(--void-border); border-radius: 14rpx; background: var(--void-panel-2); }
+.qr-image { width: 320rpx; height: 320rpx; }
+.qr-empty { display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 40rpx; }

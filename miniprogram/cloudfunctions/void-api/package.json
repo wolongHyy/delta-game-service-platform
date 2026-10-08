@@ -1,0 +1,10 @@
+{
+  "name": "void-api",
+  "version": "1.0.0",
+  "description": "VOID 三角洲游戏服务平台云函数（订单、社区、打手、管理端）",
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

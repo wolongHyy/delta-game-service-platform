@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="hud">
+    <text class="eyebrow">TRADE / LEDGER</text>
+    <text class="title sm">订单与履约进度</text>
+    <text class="muted mt-8">每张订单都经过付款确认、接单、服务、完工核验与成交凭证回写。</text>
+  </view>
+  <scroll-view class="filter-scroll mt-24" scroll-x enhanced show-scrollbar="{{false}}"><view class="filter-row"><text class="chip {{status === item.id ? 'active' : ''}}" wx:for="{{filters}}" wx:key="id" data-id="{{item.id}}" bindtap="select">{{item.label}}</text></view></scroll-view>
+  <view class="stack mt-24" wx:if="{{orders.length}}">
+    <view class="hud order-card" wx:for="{{orders}}" wx:key="id" data-id="{{item.id}}" bindtap="detail">
+      <view class="between"><text class="faint mono">ORDER / {{item.orderShort}}</text><text class="status {{item.statusTone}}">{{item.statusLabel}}</text></view>
+      <view class="between mt-16"><text class="section-title">{{item.serviceName}}</text><text class="price">¥{{item.amountText}}</text></view>
+      <text class="muted mt-8">{{item.companionName}} · {{item.unitCountText}} {{item.spec || '标准'}}</text>
+      <view class="between mt-16"><text class="faint mono">{{item.timeText}}</text><text class="blue">查看时间轴 →</text></view>
+    </view>
+  </view>
+  <view class="empty mt-24" wx:if="{{!loading && !orders.length}}"><text>当前筛选下没有订单。</text><button class="btn btn-primary mt-16" bindtap="create">去下单</button></view>
+  <view class="hud danger mt-24" wx:if="{{error}}"><text class="red">{{error}}</text></view>
+</view>

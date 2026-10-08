@@ -1,5 +1,6 @@
 {
   "compileType": "miniprogram",
+  "cloudfunctionRoot": "cloudfunctions/",
   "appid": "wxd25e5b566879a5d5",
   "projectname": "delta-club-devtools",
   "setting": {

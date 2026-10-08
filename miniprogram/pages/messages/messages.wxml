@@ -1,0 +1,10 @@
+<view class="page">
+  <view class="hud"><view class="between"><view><text class="eyebrow">COMMS / CHANNEL</text><text class="title sm" style="display:block">消息与智能客服</text></view><view class="status lime"><text>●</text><text>24H</text></view></view><text class="muted mt-12">官方公告、订单动态与 AI 客服集中在这里。</text></view>
+  <view class="hud quiet mt-24" bindtap="openAi"><view class="between"><view><text class="eyebrow blue">AI / ASSISTANT</text><text class="section-title" style="display:block">VOID 智能客服</text><text class="muted">价格、下单、付款、社区规则快速问答</text></view><text class="blue" style="font-size:48rpx">→</text></view></view>
+  <view class="row gap-12 mt-24"><button class="btn btn-ghost grow" bindtap="openNotifications">社区通知</button><button class="btn btn-ghost grow" bindtap="load">刷新消息</button></view>
+  <view class="stack mt-24" wx:if="{{messages.length}}">
+    <view class="hud message-card" wx:for="{{messages}}" wx:key="id"><view class="between"><text class="eyebrow {{item.type === 'customer_service' ? 'blue' : ''}}">{{item.type === 'customer_service' ? 'AI SUPPORT' : 'OFFICIAL'}}</text><text class="faint mono">{{item.createdAt}}</text></view><text class="section-title mt-12" style="display:block">{{item.title}}</text><text class="muted mt-8" style="display:block">{{item.content}}</text></view>
+  </view>
+  <view class="empty mt-24" wx:if="{{!loading && !messages.length}}">暂时没有新消息。</view>
+  <view class="hud danger mt-24" wx:if="{{error}}"><text class="red">{{error}}</text></view>
+</view>
